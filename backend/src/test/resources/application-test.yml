@@ -1,0 +1,5 @@
+stockmate:
+  seed:
+    enabled: false
+  jwt:
+    secret: test-secret-that-is-long-enough-for-hs256-0123
