@@ -69,8 +69,14 @@ jobs:
           npx playwright install --with-deps chromium
           npm run typecheck
           npx playwright test
+      # Print the container state and logs in the job output too, so a failure can be read without downloading anything.
+      # نطبع حالة الحاويات وسجلاتها في مخرجات المهمة أيضًا، حتى نقرأ سبب الفشل بدون تحميل أي ملف.
       - if: failure()
-        run: docker compose logs --no-color > compose.log
+        run: |
+          docker compose ps -a
+          docker inspect --format '{{json .State.Health}}' $(docker compose ps -aq frontend) || true
+          docker compose logs --no-color --tail=150
+          docker compose logs --no-color > compose.log
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

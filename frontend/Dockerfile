@@ -15,4 +15,8 @@ FROM nginx:1.27-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist/frontend/browser /usr/share/nginx/html
 EXPOSE 80
-HEALTHCHECK --interval=10s --timeout=3s --retries=5 CMD wget -qO- http://localhost/ >/dev/null || exit 1
+# 127.0.0.1, not "localhost": inside the container localhost can resolve to ::1 (IPv6) while nginx listens on IPv4 only,
+# which made the check fail on GitHub's runners even though the site was up.
+# نستخدم 127.0.0.1 وليس "localhost": داخل الحاوية ممكن localhost يتحول لـ ::1 (IPv6) بينما nginx يستمع على IPv4 فقط،
+# وهذا خلّى الفحص يفشل في أجهزة GitHub مع إن الموقع شغال.
+HEALTHCHECK --interval=10s --timeout=3s --retries=5 CMD wget -qO- http://127.0.0.1/ >/dev/null || exit 1
