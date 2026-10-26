@@ -34,15 +34,17 @@ public class StockController {
         this.service = service;
     }
 
-    // Newest first by default. "from" is inclusive and "to" is exclusive (ISO-8601 instants).
-    // الأحدث أولًا افتراضيًا. "from" شامل و"to" غير شامل (بصيغة ISO-8601).
+    // Newest first by default; "id" breaks ties between movements saved in the same instant, so paging never
+    // repeats or skips a row. "from" is inclusive and "to" is exclusive (ISO-8601 instants).
+    // الأحدث أولًا افتراضيًا؛ و"id" يفصل بين الحركات المحفوظة بنفس اللحظة، حتى التنقل بين الصفحات ما يكرر أو يتخطى صف.
+    // "from" شامل و"to" غير شامل (بصيغة ISO-8601).
     @GetMapping("/movements")
     public PageResponse<MovementResponse> movements(
             @RequestParam(required = false) Long productId,
             @RequestParam(required = false) MovementType type,
             @RequestParam(required = false) Instant from,
             @RequestParam(required = false) Instant to,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC) Pageable pageable) {
         return service.search(productId, type, from, to, pageable);
     }
 

@@ -39,7 +39,7 @@ public class SalesController {
     public PageResponse<SalesOrderSummary> list(@RequestParam(required = false) SalesStatus status,
                                                 @RequestParam(required = false) Long customerId,
                                                 @RequestParam(defaultValue = "") String q,
-                                                @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+                                                @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC) Pageable pageable) {
         return service.search(status, customerId, q, pageable);
     }
 

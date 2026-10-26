@@ -41,7 +41,7 @@ public class PurchaseController {
     public PageResponse<PurchaseOrderSummary> list(@RequestParam(required = false) PurchaseStatus status,
                                                    @RequestParam(required = false) Long supplierId,
                                                    @RequestParam(defaultValue = "") String q,
-                                                   @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+                                                   @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC) Pageable pageable) {
         return service.search(status, supplierId, q, pageable);
     }
 

@@ -1,6 +1,7 @@
 package com.stockmate.security;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -22,6 +23,9 @@ public class ProblemAccessDeniedHandler implements AccessDeniedHandler {
                        AccessDeniedException accessDeniedException) throws IOException {
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
+        // Without this the servlet container labels the body ISO-8859-1; JSON must be UTF-8 (RFC 8259).
+        // بدون هذا السطر الخادم يوسم الرد بترميز ISO-8859-1، وJSON لازم يكون UTF-8 (RFC 8259).
+        response.setCharacterEncoding(StandardCharsets.UTF_8);
         response.getWriter().write("{\"status\":403,\"title\":\"Forbidden\",\"code\":\"FORBIDDEN\"}");
     }
 }

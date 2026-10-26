@@ -41,7 +41,7 @@ public class PartnerController {
     // الافتراضي 20 بالصفحة مرتبة بالاسم، والعميل يقدر يغيّرها بـ ?page=&size=&sort=.
     @GetMapping("/suppliers")
     public PageResponse<SupplierResponse> suppliers(@RequestParam(defaultValue = "") String q,
-                                                    @PageableDefault(size = 20, sort = "name", direction = Sort.Direction.ASC) Pageable pageable) {
+                                                    @PageableDefault(size = 20, sort = {"name", "id"}, direction = Sort.Direction.ASC) Pageable pageable) {
         return service.searchSuppliers(q, pageable);
     }
 
@@ -69,7 +69,7 @@ public class PartnerController {
 
     @GetMapping("/customers")
     public PageResponse<CustomerResponse> customers(@RequestParam(defaultValue = "") String q,
-                                                    @PageableDefault(size = 20, sort = "name", direction = Sort.Direction.ASC) Pageable pageable) {
+                                                    @PageableDefault(size = 20, sort = {"name", "id"}, direction = Sort.Direction.ASC) Pageable pageable) {
         return service.searchCustomers(q, pageable);
     }
 

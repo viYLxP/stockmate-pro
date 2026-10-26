@@ -45,7 +45,7 @@ public class ProductController {
                                               @RequestParam(required = false) Long supplierId,
                                               @RequestParam(required = false) StockStatus status,
                                               @RequestParam(required = false) Boolean active,
-                                              @PageableDefault(size = 20, sort = "name", direction = Sort.Direction.ASC) Pageable pageable) {
+                                              @PageableDefault(size = 20, sort = {"name", "id"}, direction = Sort.Direction.ASC) Pageable pageable) {
         return service.search(q, categoryId, supplierId, status, active, pageable);
     }
 

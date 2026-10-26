@@ -132,6 +132,15 @@ public class DemoDataSeeder implements ApplicationRunner {
         created.add(product("ELC-002", "Wireless Mouse", electronics, sup1, "piece", "35.00", "59.00", 6, 5));
         created.add(product("ELC-003", "HDMI Cable 2m", electronics, sup2, "piece", "9.50", "19.00", 10, 40));
 
+        // The demo history runs forward in time like a real shop: opening stock 20 days ago, deliveries 15 days ago,
+        // then sales over the last 14 days. That keeps every product's ledger balance in date order.
+        // سجل البيانات التجريبية يمشي للأمام بالزمن مثل محل حقيقي: الرصيد الافتتاحي قبل 20 يوم، التوريد قبل 15 يوم،
+        // ثم المبيعات خلال آخر 14 يوم. وهذا يخلي رصيد كل منتج في السجل مرتب حسب التاريخ.
+        Instant now = Instant.now();
+        productRepository.flush();
+        jdbc.update("update stock_movement set created_at = ? where type = 'OPENING'",
+                java.sql.Timestamp.from(now.minus(Duration.ofDays(20))));
+
         // Two received purchase orders (stock in + weighted cost update) and one draft awaiting delivery.
         // طلبي شراء مستلمين (دخول مخزون وتحديث التكلفة) وطلب مسودة ينتظر التوصيل.
         Long po1 = purchases.create(new PurchaseOrderRequest(sup1, "Monthly restock", List.of(
@@ -142,6 +151,8 @@ public class DemoDataSeeder implements ApplicationRunner {
                 new LineRequest(id(created, "STA-001"), 60, null),
                 new LineRequest(id(created, "BEV-001"), 50, new BigDecimal("14.00"))))).id();
         purchases.receive(po2);
+        backdatePurchase(po1, now.minus(Duration.ofDays(15)));
+        backdatePurchase(po2, now.minus(Duration.ofDays(15)).plus(Duration.ofHours(2)));
         purchases.create(new PurchaseOrderRequest(sup3, "Urgent: detergent is out of stock", List.of(
                 new LineRequest(id(created, "CLN-002"), 30, null),
                 new LineRequest(id(created, "GRO-003"), 50, null))));
@@ -153,8 +164,16 @@ public class DemoDataSeeder implements ApplicationRunner {
         Random random = new Random(42);
         List<String> sellable = List.of("BEV-001", "BEV-002", "BEV-003", "GRO-001", "GRO-002", "GRO-004",
                 "CLN-001", "CLN-003", "STA-001", "ELC-001", "ELC-003");
-        Instant now = Instant.now();
+        // Pick the 26 sale times first and sort them oldest → newest, so orders are created in time order.
+        // نختار أوقات الـ 26 بيعة أولًا ونرتبها من الأقدم للأحدث، حتى تنشأ الطلبات بترتيب زمني.
+        List<Instant> saleTimes = new ArrayList<>();
         for (int i = 0; i < 26; i++) {
+            // 0..13 days ago, during the last 6 hours of that day's clock.
+            // من 0 إلى 13 يوم مضى، خلال آخر 6 ساعات من وقت ذلك اليوم.
+            saleTimes.add(now.minus(Duration.ofDays(random.nextInt(14))).minus(Duration.ofHours(1 + random.nextInt(6))));
+        }
+        saleTimes.sort(null);
+        for (Instant when : saleTimes) {
             List<LineRequest> lines = new ArrayList<>();
             int lineCount = 1 + random.nextInt(3);
             List<String> pool = new ArrayList<>(sellable);
@@ -167,9 +186,6 @@ public class DemoDataSeeder implements ApplicationRunner {
             SalesOrderResponse order = sales.create(new SalesOrderRequest(
                     customerIds.get(random.nextInt(customerIds.size())), null, lines));
             sales.confirm(order.id());
-            // Spread the order over the last 14 days (0..13 days ago, during business hours).
-            // نوزّع الطلب على آخر 14 يوم (من 0 إلى 13 يوم مضى، خلال ساعات العمل).
-            Instant when = now.minus(Duration.ofDays(random.nextInt(14))).minus(Duration.ofHours(random.nextInt(6)));
             backdate(order.number(), when);
         }
         // One draft and one cancelled order to show every status in the UI.
@@ -180,6 +196,16 @@ public class DemoDataSeeder implements ApplicationRunner {
                 List.of(new LineRequest(id(created, "BEV-002"), 6, null))));
         sales.confirm(cancelled.id());
         sales.cancel(cancelled.id());
+    }
+
+    // Same idea as backdate() for a received purchase order and its stock movements.
+    // نفس فكرة backdate() لطلب شراء مستلم وحركات مخزونه.
+    private void backdatePurchase(Long purchaseOrderId, Instant when) {
+        productRepository.flush();
+        java.sql.Timestamp ts = java.sql.Timestamp.from(when);
+        String number = jdbc.queryForObject("select number from purchase_order where id = ?", String.class, purchaseOrderId);
+        jdbc.update("update purchase_order set created_at = ?, received_at = ? where id = ?", ts, ts, purchaseOrderId);
+        jdbc.update("update stock_movement set created_at = ? where reference = ?", ts, number);
     }
 
     private ProductResponse product(String sku, String name, long categoryId, long supplierId, String unit,
