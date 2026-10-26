@@ -9,6 +9,10 @@ services:
       POSTGRES_DB: stockmate
       POSTGRES_USER: ${DB_USERNAME:-stockmate}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-stockmate}
+    # Published on 127.0.0.1 only, so a DB tool (DBeaver, pgAdmin) on this machine can open it but the network cannot.
+    # منشورة على 127.0.0.1 فقط، عشان أداة قاعدة بيانات (DBeaver أو pgAdmin) على نفس الجهاز تفتحها والشبكة ما توصلها.
+    ports:
+      - '127.0.0.1:${DB_PORT:-5441}:5432'
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:

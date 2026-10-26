@@ -34,6 +34,8 @@ docker compose up --build
 
 Open <http://localhost:8081>. The API documentation (Swagger UI) is at <http://localhost:8081/swagger-ui/index.html>.
 
+**Database.** PostgreSQL runs in the `db` container and keeps its data in the `db-data` Docker volume. Flyway creates the tables when the API starts. To browse it, connect a tool such as DBeaver to `localhost:5441`, database `stockmate`, with `DB_USERNAME` / `DB_PASSWORD` from `.env`. Or run `docker compose exec db psql -U stockmate -d stockmate`. `docker compose down -v` deletes the data.
+
 Demo accounts are created on the first start when `SEED_DEMO_DATA=true`:
 
 | User | Password (default) | Role |
@@ -116,6 +118,8 @@ docker compose up --build
 ```
 
 افتح <http://localhost:8081>. توثيق الـ API (Swagger) على <http://localhost:8081/swagger-ui/index.html>.
+
+**قاعدة البيانات.** PostgreSQL يشتغل داخل حاوية `db` وبياناته محفوظة في volume اسمه `db-data`. والجداول ينشئها Flyway تلقائيًا لما يشتغل الـ API. عشان تتصفحها، وصّل أداة مثل DBeaver على `localhost:5441`، قاعدة البيانات `stockmate`، باسم المستخدم وكلمة المرور من `.env` (`DB_USERNAME` و`DB_PASSWORD`). أو شغّل `docker compose exec db psql -U stockmate -d stockmate`. والأمر `docker compose down -v` يحذف البيانات.
 
 الحسابات التجريبية تنشأ أول مرة إذا كان `SEED_DEMO_DATA=true`:
 
