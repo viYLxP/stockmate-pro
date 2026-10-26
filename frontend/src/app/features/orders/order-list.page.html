@@ -1,0 +1,91 @@
+<header class="page-header">
+  <div>
+    <h1>{{ cfg().title | t }}</h1>
+    <p>{{ cfg().subtitle | t }}</p>
+  </div>
+  <div class="page-header__actions">
+    <a class="btn btn--primary" [routerLink]="[cfg().route, 'new']" data-testid="new-order"
+      ><app-icon name="plus" /> {{ cfg().newLabel | t }}</a
+    >
+  </div>
+</header>
+
+<div class="toolbar" role="search">
+  <div class="search">
+    <label class="visually-hidden" for="order-search">{{ 'common.search' | t }}</label>
+    <input
+      id="order-search"
+      type="search"
+      dir="ltr"
+      (input)="onSearch($any($event.target).value)"
+      [placeholder]="'orders.searchPlaceholder' | t"
+    />
+  </div>
+  <div>
+    <label class="visually-hidden" for="order-status">{{ 'common.status' | t }}</label>
+    <select id="order-status" (change)="setStatus($any($event.target).value)">
+      <option value="">{{ 'common.all' | t }}</option>
+      @for (s of cfg().statuses; track s) {
+        <option [value]="s">{{ 'orderStatus.' + s | t }}</option>
+      }
+    </select>
+  </div>
+</div>
+
+@if (orders.error()) {
+  <div class="alert alert--danger" role="alert">
+    {{ 'app.loadFailed' | t }}
+    <button type="button" class="btn btn--small" (click)="orders.reload()">
+      {{ 'app.retry' | t }}
+    </button>
+  </div>
+} @else if (orders.isLoading() && !orders.hasValue()) {
+  <div class="loading" role="status"><span class="spinner"></span>{{ 'app.loading' | t }}</div>
+} @else if (orders.value(); as result) {
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">{{ 'orders.number' | t }}</th>
+          <th scope="col">{{ cfg().partnerLabel | t }}</th>
+          <th scope="col">{{ 'common.status' | t }}</th>
+          <th scope="col">{{ 'common.date' | t }}</th>
+          <th scope="col" class="cell-end">{{ 'orders.total' | t }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (o of result.content; track o.id) {
+          <tr>
+            <td>
+              <a class="row-link mono" [routerLink]="[cfg().route, o.id]" dir="ltr">{{
+                o.number
+              }}</a>
+            </td>
+            <td class="wrap">
+              <bdi>{{ partnerName(o) }}</bdi>
+            </td>
+            <td>
+              <span [class]="'badge badge--' + o.status">{{ 'orderStatus.' + o.status | t }}</span>
+            </td>
+            <td>{{ fmt.date(o[cfg().completedAtField] ?? o.createdAt) }}</td>
+            <td class="cell-end num">{{ fmt.money(o.total) }}</td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="5" class="empty-state">
+              {{ (search() || status() ? 'common.noResults' : 'common.empty') | t }}
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <div class="table-foot">
+    <span>{{ 'common.showing' | t: { count: result.totalElements } }}</span>
+    <app-pagination
+      [page]="result.page"
+      [totalPages]="result.totalPages"
+      (pageChange)="page.set($event)"
+    />
+  </div>
+}

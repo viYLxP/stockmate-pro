@@ -1,0 +1,1026 @@
+/*
+ * Global styles: design tokens, layout, and reusable component classes.
+ * التنسيقات العامة: متغيرات التصميم، التخطيط، وكلاسات المكوّنات القابلة لإعادة الاستخدام.
+ *
+ * Direction rule: we use CSS logical properties (margin-inline-start, inset-inline-end, text-align: start...)
+ * instead of left/right, so the same CSS works for Arabic (RTL) and English (LTR).
+ * قاعدة الاتجاه: نستخدم خصائص CSS المنطقية بدل left/right، فنفس التنسيق يشتغل للعربي (RTL) والإنجليزي (LTR).
+ */
+
+/* ---------- Design tokens (dark industrial theme) / متغيرات التصميم (ثيم صناعي داكن) ---------- */
+:root {
+  --font-latin: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-arabic: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --c-bg: #0b0b0d;
+  --c-surface: #151518;
+  --c-surface-2: #1c1c20;
+  --c-input: #101013;
+  --c-border: #2a2a30;
+  --c-text: #ececf1;
+  --c-muted: #9b9ba6;
+  --c-primary: #f59e0b;
+  --c-primary-hover: #fbbf24;
+  --c-primary-soft: rgb(245 158 11 / 14%);
+  --c-success: #4ade80;
+  --c-success-soft: rgb(74 222 128 / 12%);
+  --c-warning: #fbbf24;
+  --c-warning-soft: rgb(251 191 36 / 12%);
+  --c-danger: #f87171;
+  --c-danger-soft: rgb(248 113 113 / 12%);
+  --c-info: #60a5fa;
+  --c-info-soft: rgb(96 165 250 / 12%);
+  --radius: 6px;
+  --radius-sm: 4px;
+  --sidebar-w: 248px;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font: 15px/1.55 var(--font-latin);
+}
+/* Arabic gets an Arabic-first font stack and slightly larger text, which reads better. */
+/* العربي ياخذ خطوط عربية أولًا وحجم أكبر شوي، وهذا أريح للقراءة. */
+html[lang='ar'] body {
+  font-family: var(--font-arabic);
+  font-size: 15.5px;
+}
+h1,
+h2,
+h3 {
+  line-height: 1.25;
+  margin: 0 0 0.5rem;
+}
+h1 {
+  font-size: 1.5rem;
+}
+h2 {
+  font-size: 1.1rem;
+}
+a {
+  color: var(--c-primary);
+}
+p {
+  margin: 0 0 0.75rem;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+:focus-visible {
+  outline: 2px solid var(--c-primary);
+  outline-offset: 2px;
+}
+.muted {
+  color: var(--c-muted);
+}
+.hint {
+  color: var(--c-muted);
+  font-size: 0.85rem;
+  margin: 0.35rem 0 0;
+}
+/* Numbers, SKUs and codes use a monospace font in English so columns line up. */
+/* الأرقام ورموز الأصناف تستخدم خط ثابت العرض في الإنجليزي حتى تتراصف الأعمدة. */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+html[lang='en'] .num,
+.sku,
+.mono {
+  font-family: var(--font-mono);
+}
+.sku {
+  font-size: 0.85rem;
+  color: var(--c-muted);
+  unicode-bidi: isolate;
+}
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  inset-inline-start: 1rem;
+  top: -3rem;
+  z-index: 100;
+  background: var(--c-primary);
+  color: #111;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+}
+.skip-link:focus {
+  top: 1rem;
+}
+
+/* ---------- Icons / الأيقونات ---------- */
+.icon {
+  display: inline-flex;
+  width: 1.15em;
+  height: 1.15em;
+  flex: none;
+  vertical-align: -0.2em;
+}
+.icon svg {
+  width: 100%;
+  height: 100%;
+}
+/* Direction-dependent icons mirror in RTL. Back arrows are mirrored once more. */
+/* الأيقونات المرتبطة بالاتجاه تنعكس في RTL، وأسهم الرجوع تنعكس مرة إضافية. */
+[dir='rtl'] .icon--flip svg {
+  transform: scaleX(-1);
+}
+.icon--back svg {
+  transform: scaleX(-1);
+}
+[dir='rtl'] .icon--flip.icon--back svg {
+  transform: none;
+}
+
+/* ---------- Layout / التخطيط ---------- */
+.layout {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  min-height: 100vh;
+}
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  background: #050506;
+  border-inline-end: 1px solid #1f1f24;
+  padding: 1rem 0.75rem;
+}
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.25rem 0.5rem 1rem;
+}
+.sidebar__brand small {
+  display: block;
+  color: var(--c-muted);
+  font-size: 0.78rem;
+}
+/* Scoped selectors so the later .icon-btn { display: inline-grid } rule cannot re-show these on desktop. */
+/* محددات أدق حتى قاعدة .icon-btn اللاحقة ما ترجّع إظهار هذي الأزرار في الكمبيوتر. */
+.sidebar .sidebar__close {
+  display: none;
+  margin-inline-start: auto;
+}
+.logo {
+  display: inline-grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  background: var(--c-primary);
+  color: #111;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+}
+.nav-section {
+  margin: 1rem 0.6rem 0.35rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b6b75;
+}
+.sidebar ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--radius);
+  color: #c9c9d1;
+  text-decoration: none;
+  border-inline-start: 2px solid transparent;
+}
+.nav-link:hover {
+  background: var(--c-surface-2);
+  color: var(--c-text);
+}
+.nav-link--active {
+  background: var(--c-primary-soft);
+  border-inline-start-color: var(--c-primary);
+  color: var(--c-primary-hover);
+}
+.main-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1.5rem;
+  background: rgb(11 11 13 / 90%);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid #1f1f24;
+}
+.topbar .topbar__menu {
+  display: none;
+}
+.topbar__spacer {
+  flex: 1;
+}
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.user-chip__text {
+  display: grid;
+  line-height: 1.2;
+}
+.user-chip__text small {
+  color: var(--c-muted);
+  font-size: 0.75rem;
+}
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--c-surface-2);
+  border: 1px solid var(--c-border);
+  font-weight: 600;
+}
+.content {
+  padding: 1.5rem;
+  max-width: 1280px;
+  width: 100%;
+}
+.content:focus {
+  outline: none;
+}
+.backdrop {
+  display: none;
+}
+
+/* Mobile: the sidebar becomes an off-canvas drawer that slides in from the reading-start side. */
+/* الجوال: القائمة الجانبية تصير درج منزلق يطلع من جهة بداية القراءة. */
+@media (max-width: 960px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sidebar {
+    position: fixed;
+    inset-block: 0;
+    inset-inline-start: 0;
+    z-index: 50;
+    width: min(84vw, 300px);
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    visibility: hidden;
+  }
+  [dir='rtl'] .sidebar {
+    transform: translateX(100%);
+  }
+  .layout--menu-open .sidebar {
+    transform: none;
+    visibility: visible;
+  }
+  .layout--menu-open .backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgb(0 0 0 / 55%);
+  }
+  .sidebar .sidebar__close,
+  .topbar .topbar__menu {
+    display: inline-grid;
+  }
+  .topbar {
+    padding: 0.5rem 1rem;
+  }
+  .user-chip__text {
+    display: none;
+  }
+  .content {
+    padding: 1rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
+  }
+}
+
+/* ---------- Page header / رأس الصفحة ---------- */
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.page-header p {
+  color: var(--c-muted);
+  margin: 0;
+}
+.page-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--c-muted);
+  text-decoration: none;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+.breadcrumb:hover {
+  color: var(--c-text);
+}
+
+/* ---------- Cards & stats / البطاقات والإحصائيات ---------- */
+.card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.2rem;
+}
+/* Stacked cards get a gap; cards inside a grid already have the grid gap, so the margin would misalign them. */
+/* البطاقات المتتالية تاخذ مسافة؛ أما داخل الشبكة فالـ gap يكفي، والهامش كان بيخلي البطاقات غير متساوية. */
+.card + .card {
+  margin-top: 1rem;
+}
+.grid > .card + .card {
+  margin-top: 0;
+}
+/* <bdi> wraps user-entered names: a Latin name such as "Gulf Cleaning Co." inside Arabic text keeps its
+   trailing dot in place, and vice versa. */
+/* <bdi> يغلّف الأسماء اللي يدخلها المستخدم: اسم لاتيني مثل "Gulf Cleaning Co." داخل نص عربي تبقى نقطته
+   بمكانها الصحيح، والعكس كذلك. */
+.card__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+.card__header h2 {
+  margin: 0;
+}
+.grid {
+  display: grid;
+  gap: 1rem;
+}
+.grid--stats {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-bottom: 1rem;
+}
+.grid--2 {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+}
+.stat-card {
+  border-top: 2px solid var(--c-primary);
+}
+.stat-card__label {
+  color: var(--c-muted);
+  font-size: 0.85rem;
+  margin: 0 0 0.35rem;
+}
+.stat-card__value {
+  font-size: 1.55rem;
+  font-weight: 600;
+  margin: 0;
+}
+.stat-card__sub {
+  color: var(--c-muted);
+  font-size: 0.82rem;
+  margin: 0.25rem 0 0;
+}
+.stat-card--warn {
+  border-top-color: var(--c-warning);
+}
+.stat-card--danger {
+  border-top-color: var(--c-danger);
+}
+.detail-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.5rem 1.25rem;
+  margin: 0;
+}
+.detail-list dt {
+  color: var(--c-muted);
+}
+.detail-list dd {
+  margin: 0;
+}
+
+/* ---------- Buttons / الأزرار ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.4rem;
+  padding: 0.45rem 0.95rem;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  background: var(--c-surface-2);
+  color: var(--c-text);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) {
+  border-color: #3a3a42;
+  background: #232328;
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.btn--primary {
+  background: var(--c-primary);
+  border-color: var(--c-primary);
+  color: #111;
+  font-weight: 600;
+}
+.btn--primary:hover:not(:disabled) {
+  background: var(--c-primary-hover);
+  border-color: var(--c-primary-hover);
+}
+.btn--danger {
+  background: var(--c-danger-soft);
+  border-color: rgb(248 113 113 / 45%);
+  color: var(--c-danger);
+}
+.btn--danger:hover:not(:disabled) {
+  background: rgb(248 113 113 / 22%);
+}
+.btn--small {
+  min-height: 2rem;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.88rem;
+}
+.btn--block {
+  width: 100%;
+}
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--c-muted);
+  cursor: pointer;
+}
+.icon-btn:hover {
+  color: var(--c-text);
+  background: var(--c-surface-2);
+}
+.icon-btn--danger:hover {
+  color: var(--c-danger);
+}
+.lang-switch {
+  font-weight: 600;
+}
+
+/* ---------- Forms / النماذج ---------- */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 1rem 1.25rem;
+}
+.form-grid--full {
+  grid-column: 1 / -1;
+}
+.field {
+  display: grid;
+  gap: 0.35rem;
+  align-content: start;
+}
+.field label,
+.field__label {
+  font-weight: 500;
+  font-size: 0.92rem;
+}
+.field label small {
+  color: var(--c-muted);
+  font-weight: 400;
+}
+input,
+select,
+textarea {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.7rem;
+  background: var(--c-input);
+  color: var(--c-text);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  text-align: start;
+}
+textarea {
+  min-height: 5rem;
+  resize: vertical;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--c-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--c-primary-soft);
+}
+input.ng-invalid.ng-touched,
+select.ng-invalid.ng-touched,
+textarea.ng-invalid.ng-touched,
+[aria-invalid='true'] {
+  border-color: var(--c-danger);
+}
+input[type='checkbox'] {
+  width: 1.1rem;
+  height: 1.1rem;
+  min-height: 0;
+  accent-color: var(--c-primary);
+}
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+/* Codes, emails and phone numbers stay left-to-right even inside Arabic forms. */
+/* الرموز والإيميلات وأرقام الجوال تبقى من اليسار لليمين حتى داخل النماذج العربية. */
+input[dir='ltr'] {
+  text-align: left;
+}
+[dir='rtl'] input[dir='ltr'] {
+  text-align: right;
+}
+.field__error {
+  color: var(--c-danger);
+  font-size: 0.84rem;
+  margin: 0;
+}
+.input-group {
+  display: flex;
+  gap: 0.35rem;
+}
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--c-border);
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.toolbar > * {
+  flex: 1 1 180px;
+}
+.toolbar .search {
+  flex: 3 1 260px;
+  position: relative;
+}
+.toolbar .checkbox {
+  flex: 0 0 auto;
+}
+/* Date filters keep a visible label ("From"/"To"), since a bare date box is ambiguous. */
+/* فلاتر التاريخ تحتفظ بعنوان ظاهر ("من"/"إلى")، لأن خانة التاريخ لوحدها غامضة. */
+.date-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.date-filter input {
+  flex: 1;
+}
+
+/* ---------- Tables / الجداول ---------- */
+/* Wide tables scroll horizontally inside their card instead of breaking the page on phones. */
+/* الجداول العريضة تتمرر أفقيًا داخل البطاقة بدل ما تكسر الصفحة في الجوال. */
+.table-wrap {
+  /* position: relative makes this the containing block for absolutely positioned children (the
+     .visually-hidden labels in headers and cells); otherwise they escape the scroll box and widen the
+     whole page on phones. */
+  /* position: relative يخلي هذا العنصر هو المرجع للعناصر المطلقة بداخله (عناوين .visually-hidden في الجدول)؛
+     وإلا تطلع برا صندوق التمرير وتوسّع الصفحة كاملة في الجوال. */
+  position: relative;
+  overflow-x: auto;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  background: var(--c-surface);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.93rem;
+}
+th,
+td {
+  padding: 0.65rem 0.8rem;
+  text-align: start;
+  border-bottom: 1px solid var(--c-border);
+  white-space: nowrap;
+}
+th {
+  color: var(--c-muted);
+  font-weight: 500;
+  font-size: 0.82rem;
+  background: var(--c-surface-2);
+}
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+tbody tr:hover {
+  background: rgb(255 255 255 / 2%);
+}
+td.wrap {
+  white-space: normal;
+  min-width: 12rem;
+}
+.cell-end,
+th.cell-end {
+  text-align: end;
+}
+/* Cells marked dir="ltr" (numbers, SKUs, order numbers) would otherwise align by their own direction and drift
+   away from their Arabic column header; keep them aligned with the page direction instead. */
+/* الخلايا اللي عليها dir="ltr" (أرقام، رموز، أرقام طلبات) كانت بتتحاذى حسب اتجاهها الخاص وتبعد عن عنوان
+   العمود العربي؛ فنخليها تتحاذى مع اتجاه الصفحة. */
+[dir='rtl'] td[dir='ltr'],
+[dir='rtl'] div.sku[dir='ltr'] {
+  text-align: right;
+}
+[dir='rtl'] td.cell-end[dir='ltr'] {
+  text-align: left;
+}
+.row-link {
+  color: var(--c-text);
+  text-decoration: none;
+  font-weight: 500;
+}
+.row-link:hover {
+  color: var(--c-primary-hover);
+  text-decoration: underline;
+}
+.row-actions {
+  display: flex;
+  gap: 0.15rem;
+  justify-content: flex-end;
+}
+.table-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  color: var(--c-muted);
+  font-size: 0.88rem;
+}
+
+/* ---------- Badges / الشارات ---------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.12rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: var(--c-surface-2);
+  color: var(--c-muted);
+  border: 1px solid var(--c-border);
+}
+.badge--ok,
+.badge--CONFIRMED,
+.badge--RECEIVED {
+  background: var(--c-success-soft);
+  color: var(--c-success);
+  border-color: transparent;
+}
+.badge--low,
+.badge--DRAFT {
+  background: var(--c-warning-soft);
+  color: var(--c-warning);
+  border-color: transparent;
+}
+.badge--out,
+.badge--CANCELLED {
+  background: var(--c-danger-soft);
+  color: var(--c-danger);
+  border-color: transparent;
+}
+.badge--info {
+  background: var(--c-info-soft);
+  color: var(--c-info);
+  border-color: transparent;
+}
+.qty-in {
+  color: var(--c-success);
+}
+.qty-out {
+  color: var(--c-danger);
+}
+
+/* ---------- Alerts, empty & loading states / التنبيهات والحالات الفارغة والتحميل ---------- */
+.alert {
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius);
+  border: 1px solid;
+  margin: 0 0 1rem;
+}
+.alert--danger {
+  background: var(--c-danger-soft);
+  border-color: rgb(248 113 113 / 40%);
+  color: #fecaca;
+}
+.alert--warning {
+  background: var(--c-warning-soft);
+  border-color: rgb(251 191 36 / 40%);
+  color: #fde68a;
+}
+.alert--info {
+  background: var(--c-info-soft);
+  border-color: rgb(96 165 250 / 40%);
+  color: #bfdbfe;
+}
+.empty-state {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--c-muted);
+}
+.empty-state--page {
+  padding: 4rem 1rem;
+}
+.empty-state h1 {
+  color: var(--c-text);
+}
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 2rem;
+  color: var(--c-muted);
+}
+.spinner {
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 2px solid var(--c-border);
+  border-top-color: var(--c-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.skeleton {
+  height: 1rem;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, #1a1a1e, #232328, #1a1a1e);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* ---------- Pagination / الصفحات ---------- */
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* ---------- Dialogs / النوافذ ---------- */
+.dialog {
+  width: min(560px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  padding: 1.35rem;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  background: var(--c-surface);
+  color: var(--c-text);
+}
+.dialog--small {
+  width: min(420px, calc(100vw - 2rem));
+}
+.dialog::backdrop {
+  background: rgb(0 0 0 / 65%);
+}
+.dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+/* ---------- Toasts / الإشعارات ---------- */
+.toasts {
+  position: fixed;
+  inset-block-end: 1rem;
+  inset-inline-end: 1rem;
+  z-index: 200;
+  display: grid;
+  gap: 0.5rem;
+  width: min(380px, calc(100vw - 2rem));
+}
+.toast {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius);
+  background: #12301d;
+  border: 1px solid #1f5131;
+  color: #d1fae5;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 40%);
+}
+.toast--error {
+  background: #3a1414;
+  border-color: #6b2323;
+  color: #fee2e2;
+}
+.toast .icon-btn {
+  width: 1.6rem;
+  height: 1.6rem;
+  color: inherit;
+}
+
+/* ---------- Login / تسجيل الدخول ---------- */
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem 1rem;
+  background:
+    radial-gradient(60% 50% at 50% 0%, rgb(245 158 11 / 10%), transparent 70%), var(--c-bg);
+  position: relative;
+}
+.auth-page__lang {
+  position: absolute;
+  top: 1rem;
+  inset-inline-end: 1rem;
+}
+.auth-card {
+  width: min(400px, 100%);
+  display: grid;
+  gap: 1rem;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  padding: 1.75rem;
+}
+.auth-card h1 {
+  margin: 0;
+}
+.auth-card .muted {
+  margin: -0.5rem 0 0;
+}
+.auth-card__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* ---------- Dashboard chart / رسم لوحة التحكم ---------- */
+.bars {
+  display: grid;
+  grid-template-columns: repeat(14, minmax(0, 1fr));
+  align-items: end;
+  gap: 0.35rem;
+  height: 190px;
+  padding-top: 0.5rem;
+}
+.bar {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 0.35rem;
+  height: 100%;
+  text-align: center;
+}
+.bar__track {
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+}
+.bar__fill {
+  width: 100%;
+  min-height: 2px;
+  background: var(--c-primary);
+  border-radius: 3px 3px 0 0;
+  opacity: 0.85;
+}
+.bar:hover .bar__fill {
+  opacity: 1;
+}
+.bar__label {
+  font-size: 0.68rem;
+  color: var(--c-muted);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--c-border);
+}
+.list li:last-child {
+  border-bottom: 0;
+}
+.list__main {
+  min-width: 0;
+}
+/* SKU on its own line under the product name. / رمز المنتج في سطر مستقل تحت اسم المنتج. */
+.list__main .sku {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--c-muted);
+}
+.list__main strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Order editor / محرر الطلبات ---------- */
+.lines-table input,
+.lines-table select {
+  min-width: 6rem;
+}
+.lines-table td {
+  vertical-align: top;
+}
+.totals {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 0.4rem 1.5rem;
+  justify-content: end;
+  margin-top: 1rem;
+}
+.totals dt {
+  color: var(--c-muted);
+}
+.totals dd {
+  margin: 0;
+  text-align: end;
+}
+.totals .grand {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--c-text);
+}

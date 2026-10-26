@@ -1,0 +1,111 @@
+<header class="page-header">
+  <div>
+    <h1>{{ 'categories.title' | t }}</h1>
+    <p>{{ 'categories.subtitle' | t }}</p>
+  </div>
+  <div class="page-header__actions">
+    <button type="button" class="btn btn--primary" (click)="open(null)">
+      <app-icon name="plus" /> {{ 'categories.new' | t }}
+    </button>
+  </div>
+</header>
+
+@if (categories.error()) {
+  <div class="alert alert--danger" role="alert">
+    {{ 'app.loadFailed' | t }}
+    <button type="button" class="btn btn--small" (click)="categories.reload()">
+      {{ 'app.retry' | t }}
+    </button>
+  </div>
+} @else if (categories.isLoading() && !categories.hasValue()) {
+  <div class="loading" role="status"><span class="spinner"></span>{{ 'app.loading' | t }}</div>
+} @else {
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">{{ 'common.name' | t }}</th>
+          <th scope="col">{{ 'common.description' | t }}</th>
+          <th scope="col" class="cell-end">{{ 'categories.products' | t }}</th>
+          <th scope="col" class="cell-end">
+            <span class="visually-hidden">{{ 'common.actions' | t }}</span>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (c of categories.value() ?? []; track c.id) {
+          <tr>
+            <td>
+              <a class="row-link" routerLink="/products" [queryParams]="{ categoryId: c.id }">{{
+                c.name
+              }}</a>
+            </td>
+            <td class="wrap muted">{{ c.description ?? '—' }}</td>
+            <td class="cell-end num">{{ c.productCount }}</td>
+            <td>
+              <div class="row-actions">
+                <button
+                  type="button"
+                  class="icon-btn"
+                  (click)="open(c)"
+                  [attr.aria-label]="('common.edit' | t) + ' ' + c.name"
+                >
+                  <app-icon name="edit" />
+                </button>
+                @if (auth.isAdmin()) {
+                  <!-- Disabled when the category still has products: the server would refuse anyway (IN_USE). -->
+                  <!-- معطّل لما يكون في التصنيف منتجات: الخادم بيرفض أصلًا (IN_USE). -->
+                  <button
+                    type="button"
+                    class="icon-btn icon-btn--danger"
+                    (click)="remove(c)"
+                    [disabled]="c.productCount > 0"
+                    [attr.aria-label]="('common.delete' | t) + ' ' + c.name"
+                  >
+                    <app-icon name="trash" />
+                  </button>
+                }
+              </div>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="4" class="empty-state">{{ 'common.empty' | t }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
+
+<dialog #dialog class="dialog" aria-labelledby="cat-dialog-title">
+  <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <h2 id="cat-dialog-title">{{ (editing() ? 'categories.edit' : 'categories.new') | t }}</h2>
+    @if (errorText()) {
+      <div class="alert alert--danger" role="alert">{{ errorText() }}</div>
+    }
+    <div class="form-grid">
+      <div class="field form-grid--full">
+        <label for="cat-name">{{ 'common.name' | t }}</label>
+        <input id="cat-name" formControlName="name" aria-describedby="cat-name-err" />
+        <app-field-error
+          [control]="form.controls.name"
+          [server]="serverFields()['name']"
+          id="cat-name-err"
+        />
+      </div>
+      <div class="field form-grid--full">
+        <label for="cat-desc"
+          >{{ 'common.description' | t }} <small>({{ 'common.optional' | t }})</small></label
+        >
+        <textarea id="cat-desc" formControlName="description" rows="3"></textarea>
+      </div>
+    </div>
+    <div class="dialog__actions">
+      <button type="button" class="btn" (click)="close()">{{ 'common.cancel' | t }}</button>
+      <button type="submit" class="btn btn--primary" [disabled]="saving()">
+        {{ (saving() ? 'common.saving' : 'common.save') | t }}
+      </button>
+    </div>
+  </form>
+</dialog>

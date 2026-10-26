@@ -1,0 +1,141 @@
+<a class="breadcrumb" routerLink="/products"
+  ><app-icon name="chevron" class="icon--back" [flip]="true" /> {{ 'products.title' | t }}</a
+>
+
+@if (product.isLoading() && !product.hasValue()) {
+  <div class="loading" role="status"><span class="spinner"></span>{{ 'app.loading' | t }}</div>
+} @else if (product.error()) {
+  <div class="alert alert--danger" role="alert">{{ 'errors.NOT_FOUND' | t }}</div>
+} @else if (product.value(); as p) {
+  <header class="page-header">
+    <div>
+      <h1>
+        <bdi>{{ p.name }}</bdi>
+      </h1>
+      <p>
+        <span class="sku" dir="ltr">{{ p.sku }}</span> ·
+        <span [class]="'badge badge--' + p.stockStatus.toLowerCase()">{{
+          'stockStatus.' + p.stockStatus | t
+        }}</span>
+        @if (!p.active) {
+          <span class="badge">{{ 'common.inactive' | t }}</span>
+        }
+      </p>
+    </div>
+    <div class="page-header__actions">
+      <button type="button" class="btn" (click)="openAdjust(p)" data-testid="adjust">
+        <app-icon name="swap" /> {{ 'products.adjust' | t }}
+      </button>
+      <a class="btn btn--primary" [routerLink]="['/products', p.id, 'edit']"
+        ><app-icon name="edit" /> {{ 'common.edit' | t }}</a
+      >
+    </div>
+  </header>
+
+  <section class="grid grid--stats">
+    <article
+      class="card stat-card"
+      [class.stat-card--warn]="p.stockStatus === 'LOW'"
+      [class.stat-card--danger]="p.stockStatus === 'OUT'"
+    >
+      <p class="stat-card__label">{{ 'products.quantity' | t }}</p>
+      <p class="stat-card__value num" data-testid="product-qty">
+        {{ fmt.number(p.quantity) }} <small class="muted">{{ p.unit }}</small>
+      </p>
+      <p class="stat-card__sub">{{ 'products.reorderLevel' | t }}: {{ p.reorderLevel }}</p>
+    </article>
+    <article class="card stat-card">
+      <p class="stat-card__label">{{ 'products.stockValue' | t }}</p>
+      <p class="stat-card__value num">{{ fmt.money(p.stockValue) }}</p>
+    </article>
+    <article class="card stat-card">
+      <p class="stat-card__label">{{ 'products.salePrice' | t }}</p>
+      <p class="stat-card__value num">{{ fmt.money(p.salePrice) }}</p>
+      <p class="stat-card__sub">
+        {{ 'products.costPrice' | t }}: {{ fmt.money(p.costPrice) }}
+        @if (margin() !== null) {
+          · {{ 'products.margin' | t }} {{ margin() }}%
+        }
+      </p>
+    </article>
+  </section>
+
+  <section class="card">
+    <dl class="detail-list">
+      <dt>{{ 'products.category' | t }}</dt>
+      <dd>
+        <bdi>{{ p.categoryName }}</bdi>
+      </dd>
+      <dt>{{ 'products.supplier' | t }}</dt>
+      <dd>
+        <bdi>{{ p.supplierName ?? ('products.noSupplier' | t) }}</bdi>
+      </dd>
+      <dt>{{ 'products.lastUpdated' | t }}</dt>
+      <dd>{{ fmt.dateTime(p.updatedAt) }}</dd>
+    </dl>
+  </section>
+
+  <section class="card">
+    <div class="card__header">
+      <h2>{{ 'products.history' | t }}</h2>
+    </div>
+    @if (movements.value(); as page) {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">{{ 'common.date' | t }}</th>
+              <th scope="col">{{ 'movements.type' | t }}</th>
+              <th scope="col" class="cell-end">{{ 'movements.change' | t }}</th>
+              <th scope="col" class="cell-end">{{ 'movements.balance' | t }}</th>
+              <th scope="col">{{ 'movements.reference' | t }}</th>
+              <th scope="col">{{ 'common.createdBy' | t }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (m of page.content; track m.id) {
+              <tr>
+                <td>{{ fmt.dateTime(m.createdAt) }}</td>
+                <td>
+                  {{ 'movementType.' + m.type | t }}
+                  @if (m.note) {
+                    <div class="muted">
+                      <bdi>{{ m.note }}</bdi>
+                    </div>
+                  }
+                </td>
+                <td
+                  class="cell-end num"
+                  [class.qty-in]="m.quantity > 0"
+                  [class.qty-out]="m.quantity < 0"
+                  dir="ltr"
+                >
+                  {{ m.quantity > 0 ? '+' : '' }}{{ m.quantity }}
+                </td>
+                <td class="cell-end num">{{ m.balanceAfter }}</td>
+                <td class="mono" dir="ltr">{{ m.reference ?? '—' }}</td>
+                <td>
+                  <bdi>{{ m.createdBy }}</bdi>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="6" class="empty-state">{{ 'common.empty' | t }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="table-foot">
+        <span>{{ 'common.showing' | t: { count: page.totalElements } }}</span>
+        <app-pagination
+          [page]="page.page"
+          [totalPages]="page.totalPages"
+          (pageChange)="movementsPage.set($event)"
+        />
+      </div>
+    }
+  </section>
+}
+
+<app-adjust-dialog (adjusted)="onAdjusted()" />

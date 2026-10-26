@@ -1,0 +1,173 @@
+<header class="page-header">
+  <div>
+    <h1>{{ 'dashboard.title' | t }}</h1>
+    <p>{{ 'dashboard.subtitle' | t }}</p>
+  </div>
+</header>
+
+@if (data.isLoading() && !data.hasValue()) {
+  <div class="loading" role="status"><span class="spinner"></span>{{ 'app.loading' | t }}</div>
+} @else if (errorText()) {
+  <div class="alert alert--danger" role="alert">
+    {{ errorText() }}
+    <button type="button" class="btn btn--small" (click)="data.reload()">
+      {{ 'app.retry' | t }}
+    </button>
+  </div>
+} @else if (data.value(); as d) {
+  <section class="grid grid--stats" aria-label="KPIs">
+    <article class="card stat-card">
+      <p class="stat-card__label">{{ 'dashboard.inventoryValue' | t }}</p>
+      <p class="stat-card__value num" data-testid="kpi-inventory">
+        {{ fmt.money(d.inventoryCostValue) }}
+      </p>
+      <p class="stat-card__sub">
+        {{ 'dashboard.retailValue' | t: { value: fmt.money(d.inventoryRetailValue) } }}
+      </p>
+    </article>
+    <article class="card stat-card">
+      <p class="stat-card__label">{{ 'dashboard.salesMonth' | t }}</p>
+      <p class="stat-card__value num" data-testid="kpi-sales">{{ fmt.money(d.salesThisMonth) }}</p>
+      <p class="stat-card__sub">
+        {{ 'dashboard.profitMonth' | t: { value: fmt.money(d.grossProfitThisMonth) } }}
+      </p>
+    </article>
+    <article class="card stat-card">
+      <p class="stat-card__label">{{ 'dashboard.purchasesMonth' | t }}</p>
+      <p class="stat-card__value num">{{ fmt.money(d.purchasesThisMonth) }}</p>
+      <p class="stat-card__sub">
+        {{
+          'dashboard.draftOrders'
+            | t: { sales: d.draftSalesOrders, purchases: d.draftPurchaseOrders }
+        }}
+      </p>
+    </article>
+    <article
+      class="card stat-card"
+      [class.stat-card--warn]="d.lowStockCount > 0"
+      [class.stat-card--danger]="d.outOfStockCount > 0"
+    >
+      <p class="stat-card__label">{{ 'dashboard.activeProducts' | t }}</p>
+      <p class="stat-card__value num">{{ fmt.number(d.activeProducts) }}</p>
+      <p class="stat-card__sub">
+        <a routerLink="/products" [queryParams]="{ status: 'LOW' }"
+          >{{ 'dashboard.lowStock' | t }}: {{ d.lowStockCount }}</a
+        >
+        ·
+        <a routerLink="/products" [queryParams]="{ status: 'OUT' }"
+          >{{ 'dashboard.outOfStock' | t }}: {{ d.outOfStockCount }}</a
+        >
+      </p>
+    </article>
+  </section>
+
+  <div class="grid grid--2">
+    <section class="card">
+      <div class="card__header">
+        <h2>{{ 'dashboard.dailySales' | t }}</h2>
+        <small class="muted">{{ 'dashboard.dailySalesHint' | t }}</small>
+      </div>
+      @if (hasSales()) {
+        <!-- role="img" + aria-label describe the chart; each bar also has a title tooltip with the exact value. -->
+        <!-- role="img" مع aria-label يوصفون الرسم؛ وكل عمود له تلميح title بالقيمة الدقيقة. -->
+        <div class="bars" role="img" [attr.aria-label]="'dashboard.chartLabel' | t">
+          @for (bar of bars(); track bar.date) {
+            <div class="bar" [title]="fmt.day(bar.date) + ': ' + fmt.money(bar.total)">
+              <div class="bar__track">
+                <div class="bar__fill" [style.height.%]="bar.percent"></div>
+              </div>
+              <span class="bar__label">{{ fmt.dayOfMonth(bar.date) }}</span>
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="empty-state">{{ 'dashboard.noSales' | t }}</p>
+      }
+    </section>
+
+    <section class="card">
+      <div class="card__header">
+        <h2>{{ 'dashboard.topProducts' | t }}</h2>
+      </div>
+      @if (d.topProducts.length) {
+        <ul class="list">
+          @for (p of d.topProducts; track p.productId) {
+            <li>
+              <span class="list__main"
+                ><a class="row-link" [routerLink]="['/products', p.productId]"
+                  ><bdi>{{ p.name }}</bdi></a
+                >
+                <span class="sku">{{ p.sku }}</span></span
+              >
+              <span class="cell-end num"
+                >{{ fmt.money(p.revenue) }}<br /><small class="muted">{{
+                  'dashboard.sold' | t: { qty: p.quantity }
+                }}</small></span
+              >
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="empty-state">{{ 'dashboard.noSales' | t }}</p>
+      }
+    </section>
+
+    <section class="card">
+      <div class="card__header">
+        <h2>{{ 'dashboard.reorder' | t }}</h2>
+      </div>
+      @if (d.reorderList.length) {
+        <ul class="list">
+          @for (p of d.reorderList; track p.id) {
+            <li>
+              <span class="list__main"
+                ><a class="row-link" [routerLink]="['/products', p.id]"
+                  ><bdi>{{ p.name }}</bdi></a
+                >
+                <span class="sku">{{ p.sku }}</span></span
+              >
+              <span
+                ><span class="badge" [class]="'badge badge--' + p.stockStatus.toLowerCase()">{{
+                  'stockStatus.' + p.stockStatus | t
+                }}</span>
+                <span class="num"> {{ p.quantity }} / {{ p.reorderLevel }}</span></span
+              >
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="empty-state">{{ 'dashboard.allStocked' | t }}</p>
+      }
+    </section>
+
+    <section class="card">
+      <div class="card__header">
+        <h2>{{ 'dashboard.recentMovements' | t }}</h2>
+        <a routerLink="/movements">{{ 'common.view' | t }}</a>
+      </div>
+      <ul class="list">
+        @for (m of d.recentMovements; track m.id) {
+          <li>
+            <span class="list__main"
+              ><strong
+                ><bdi>{{ m.productName }}</bdi></strong
+              >
+              <small class="muted"
+                >{{ 'movementType.' + m.type | t }} · {{ fmt.dateTime(m.createdAt) }}</small
+              ></span
+            >
+            <span
+              class="num"
+              [class.qty-in]="m.quantity > 0"
+              [class.qty-out]="m.quantity < 0"
+              dir="ltr"
+              >{{ m.quantity > 0 ? '+' : '' }}{{ m.quantity }}</span
+            >
+          </li>
+        } @empty {
+          <li class="muted">{{ 'common.empty' | t }}</li>
+        }
+      </ul>
+    </section>
+  </div>
+}

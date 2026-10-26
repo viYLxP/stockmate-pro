@@ -1,0 +1,150 @@
+<header class="page-header">
+  <div>
+    <h1>{{ 'movements.title' | t }}</h1>
+    <p>{{ 'movements.subtitle' | t }}</p>
+  </div>
+  <div class="page-header__actions">
+    <!-- Enabled only when one product is selected, because an adjustment always targets a single product. -->
+    <!-- يتفعّل فقط عند اختيار منتج واحد، لأن التسوية دائمًا تخص منتج واحد. -->
+    <button
+      type="button"
+      class="btn btn--primary"
+      [disabled]="!selectedProduct()"
+      (click)="openAdjust()"
+      [attr.title]="selectedProduct() ? null : ('movements.adjustHint' | t)"
+      aria-describedby="adjust-hint"
+      data-testid="movements-adjust"
+    >
+      <app-icon name="swap" /> {{ 'movements.newAdjustment' | t }}
+    </button>
+  </div>
+</header>
+@if (!selectedProduct()) {
+  <p class="hint" id="adjust-hint">{{ 'movements.adjustHint' | t }}</p>
+}
+
+<div class="toolbar" role="search">
+  <div>
+    <label class="visually-hidden" for="mv-product">{{ 'orders.product' | t }}</label>
+    <select
+      id="mv-product"
+      (change)="setFilter({ productId: $any($event.target).value || null })"
+      data-testid="mv-product"
+    >
+      <option value="">{{ 'movements.anyProduct' | t }}</option>
+      @for (p of products.value()?.content ?? []; track p.id) {
+        <option [value]="p.id" [selected]="'' + p.id === productId()">
+          {{ p.name }} ({{ p.sku }})
+        </option>
+      }
+    </select>
+  </div>
+  <div>
+    <label class="visually-hidden" for="mv-type">{{ 'movements.type' | t }}</label>
+    <select id="mv-type" (change)="setFilter({ type: $any($event.target).value || null })">
+      <option value="">{{ 'movements.anyType' | t }}</option>
+      @for (ty of types; track ty) {
+        <option [value]="ty" [selected]="ty === type()">{{ 'movementType.' + ty | t }}</option>
+      }
+    </select>
+  </div>
+  <div class="date-filter">
+    <label for="mv-from">{{ 'movements.from' | t }}</label>
+    <input
+      id="mv-from"
+      type="date"
+      [value]="from()"
+      (change)="setFilter({ from: $any($event.target).value || null })"
+    />
+  </div>
+  <div class="date-filter">
+    <label for="mv-to">{{ 'movements.to' | t }}</label>
+    <input
+      id="mv-to"
+      type="date"
+      [value]="to()"
+      (change)="setFilter({ to: $any($event.target).value || null })"
+    />
+  </div>
+  @if (hasFilters()) {
+    <button type="button" class="btn" (click)="clearFilters()">
+      {{ 'common.clearFilters' | t }}
+    </button>
+  }
+</div>
+
+@if (rangeInvalid()) {
+  <div class="alert alert--warning" role="alert">{{ 'movements.rangeInvalid' | t }}</div>
+} @else if (errorText()) {
+  <div class="alert alert--danger" role="alert">{{ errorText() }}</div>
+} @else if (movements.isLoading() && !movements.hasValue()) {
+  <div class="loading" role="status"><span class="spinner"></span>{{ 'app.loading' | t }}</div>
+} @else if (movements.value(); as page) {
+  <section [attr.aria-busy]="movements.isLoading()">
+    <div class="table-wrap">
+      <table data-testid="movements-table">
+        <thead>
+          <tr>
+            <th scope="col">{{ 'common.date' | t }}</th>
+            <th scope="col">{{ 'orders.product' | t }}</th>
+            <th scope="col">{{ 'movements.type' | t }}</th>
+            <th scope="col" class="cell-end">{{ 'movements.change' | t }}</th>
+            <th scope="col" class="cell-end">{{ 'movements.balance' | t }}</th>
+            <th scope="col">{{ 'movements.reference' | t }}</th>
+            <th scope="col">{{ 'common.createdBy' | t }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (m of page.content; track m.id) {
+            <tr>
+              <td>{{ fmt.dateTime(m.createdAt) }}</td>
+              <td>
+                <a [routerLink]="['/products', m.productId]"
+                  ><bdi>{{ m.productName }}</bdi></a
+                >
+                <div class="sku" dir="ltr">{{ m.productSku }}</div>
+              </td>
+              <td>
+                {{ 'movementType.' + m.type | t }}
+                @if (m.note) {
+                  <div class="muted">
+                    <bdi>{{ m.note }}</bdi>
+                  </div>
+                }
+              </td>
+              <td
+                class="cell-end num"
+                [class.qty-in]="m.quantity > 0"
+                [class.qty-out]="m.quantity < 0"
+                dir="ltr"
+              >
+                {{ m.quantity > 0 ? '+' : '' }}{{ m.quantity }}
+              </td>
+              <td class="cell-end num">{{ m.balanceAfter }}</td>
+              <td class="mono" dir="ltr">{{ m.reference ?? '—' }}</td>
+              <td>
+                <bdi>{{ m.createdBy }}</bdi>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7" class="empty-state">
+                {{ (hasFilters() ? 'common.noResults' : 'common.empty') | t }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="table-foot">
+      <span>{{ 'common.showing' | t: { count: page.totalElements } }}</span>
+      <app-pagination
+        [page]="page.page"
+        [totalPages]="page.totalPages"
+        (pageChange)="setFilter({ page: $event })"
+      />
+    </div>
+  </section>
+}
+
+<app-adjust-dialog (adjusted)="onAdjusted()" />

@@ -1,0 +1,236 @@
+<a class="breadcrumb" [routerLink]="cfg().route"
+  ><app-icon name="chevron" class="icon--back" [flip]="true" /> {{ cfg().title | t }}</a
+>
+
+@if (id() && order.isLoading() && !order.hasValue()) {
+  <div class="loading" role="status"><span class="spinner"></span>{{ 'app.loading' | t }}</div>
+} @else if (id() && order.error()) {
+  <div class="alert alert--danger" role="alert">{{ 'errors.NOT_FOUND' | t }}</div>
+} @else {
+  @let current = order.value();
+  <header class="page-header">
+    <div>
+      <h1>
+        @if (current) {
+          <span class="mono" dir="ltr">{{ current.number }}</span>
+        } @else {
+          {{ cfg().newLabel | t }}
+        }
+        @if (current) {
+          <span [class]="'badge badge--' + current.status" data-testid="order-status">{{
+            'orderStatus.' + current.status | t
+          }}</span>
+        }
+      </h1>
+      @if (current) {
+        <p>
+          {{ 'orders.created' | t: { date: fmt.dateTime(current.createdAt) } }} ·
+          <bdi>{{ current.createdBy }}</bdi>
+          @if (current[cfg().completedAtField]) {
+            ·
+            {{
+              cfg().completedAtLabel | t: { date: fmt.dateTime(current[cfg().completedAtField]) }
+            }}
+          }
+        </p>
+      }
+    </div>
+    @if (current) {
+      <div class="page-header__actions">
+        @if (current.status === 'DRAFT') {
+          <button
+            type="button"
+            class="btn btn--primary"
+            (click)="complete(current)"
+            [disabled]="busy()"
+            data-testid="complete-order"
+          >
+            <app-icon name="check" /> {{ cfg().completeLabel | t }}
+          </button>
+        }
+        <!-- Drafts can always be cancelled; confirmed sales can be cancelled (stock returns); received purchases cannot. -->
+        <!-- المسودات تُلغى دائمًا؛ والمبيعات المؤكدة تُلغى (والمخزون يرجع)؛ والمشتريات المستلمة لا تُلغى. -->
+        @if (current.status === 'DRAFT' || current.status === 'CONFIRMED') {
+          <button
+            type="button"
+            class="btn btn--danger"
+            (click)="cancel(current)"
+            [disabled]="busy()"
+            data-testid="cancel-order"
+          >
+            {{ 'orders.cancelOrder' | t }}
+          </button>
+        }
+      </div>
+    }
+  </header>
+
+  @if (errorText()) {
+    <div class="alert alert--danger" role="alert" data-testid="order-error">{{ errorText() }}</div>
+  }
+  @if (current && !editable()) {
+    <div class="alert alert--info" role="status">
+      {{ 'orders.readOnly' | t: { status: ('orderStatus.' + current.status | t) } }}
+    </div>
+  }
+
+  <form class="card" [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <div class="form-grid">
+      <div class="field">
+        <label for="partner">{{ cfg().partnerLabel | t }}</label>
+        <select
+          id="partner"
+          formControlName="partnerId"
+          aria-describedby="partner-err"
+          data-testid="partner"
+        >
+          <option value="" disabled>{{ 'orders.choose' | t }}</option>
+          @for (p of partners.value()?.content ?? []; track p.id) {
+            <option [value]="'' + p.id">{{ p.name }}</option>
+          }
+        </select>
+        <app-field-error [control]="form.controls.partnerId" id="partner-err" />
+      </div>
+      <div class="field">
+        <label for="notes"
+          >{{ 'common.notes' | t }} <small>({{ 'common.optional' | t }})</small></label
+        >
+        <input id="notes" formControlName="notes" maxlength="500" />
+      </div>
+    </div>
+
+    <h2 style="margin-top: 1.25rem">{{ 'orders.lines' | t }}</h2>
+    <div class="table-wrap lines-table">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">{{ 'orders.product' | t }}</th>
+            <th scope="col">{{ 'orders.quantity' | t }}</th>
+            <th scope="col">{{ cfg().priceLabel | t }}</th>
+            <th scope="col" class="cell-end">{{ 'orders.lineTotal' | t }}</th>
+            @if (editable()) {
+              <th scope="col">
+                <span class="visually-hidden">{{ 'common.actions' | t }}</span>
+              </th>
+            }
+          </tr>
+        </thead>
+        <tbody formArrayName="lines">
+          @for (line of lines.controls; track line; let i = $index) {
+            <tr [formGroupName]="i">
+              <td>
+                <label class="visually-hidden" [for]="'line-product-' + i">{{
+                  'orders.product' | t
+                }}</label>
+                <select
+                  [id]="'line-product-' + i"
+                  formControlName="productId"
+                  (change)="onProductChange(i)"
+                  data-testid="line-product"
+                >
+                  <option value="" disabled>{{ 'orders.choose' | t }}</option>
+                  @for (p of products.value()?.content ?? []; track p.id) {
+                    <option [value]="'' + p.id">{{ p.sku }} – {{ p.name }}</option>
+                  }
+                  <!-- A read-only order may reference a product that is archived now; show it from the order line. -->
+                  <!-- الطلب المقفول ممكن يحتوي منتج مؤرشف الحين؛ نعرضه من سطر الطلب نفسه. -->
+                  @if (current && !editable()) {
+                    @for (l of current.lines; track l.productId) {
+                      @if (!productMap().has(l.productId)) {
+                        <option [value]="'' + l.productId">
+                          {{ l.productSku }} – {{ l.productName }}
+                        </option>
+                      }
+                    }
+                  }
+                </select>
+                @if (kind() === 'sales' && productMap().get(+line.value.productId); as p) {
+                  <p class="hint" [class.qty-out]="stockWarning(i)">
+                    {{ 'orders.available' | t: { qty: p.quantity } }}
+                    @if (stockWarning(i) && editable()) {
+                      – {{ 'orders.lowStockWarning' | t }}
+                    }
+                  </p>
+                }
+              </td>
+              <td>
+                <label class="visually-hidden" [for]="'line-qty-' + i">{{
+                  'orders.quantity' | t
+                }}</label>
+                <input
+                  [id]="'line-qty-' + i"
+                  type="number"
+                  min="1"
+                  step="1"
+                  inputmode="numeric"
+                  formControlName="quantity"
+                  style="max-width: 7rem"
+                  data-testid="line-qty"
+                />
+              </td>
+              <td>
+                <label class="visually-hidden" [for]="'line-price-' + i">{{
+                  cfg().priceLabel | t
+                }}</label>
+                <input
+                  [id]="'line-price-' + i"
+                  formControlName="unitPrice"
+                  inputmode="decimal"
+                  dir="ltr"
+                  style="max-width: 9rem"
+                />
+              </td>
+              <td class="cell-end num">{{ fmt.amount(lineTotal(i)) }}</td>
+              @if (editable()) {
+                <td>
+                  <button
+                    type="button"
+                    class="icon-btn icon-btn--danger"
+                    (click)="removeLine(i)"
+                    [disabled]="lines.length === 1"
+                    [attr.aria-label]="'orders.removeLine' | t"
+                  >
+                    <app-icon name="trash" />
+                  </button>
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    @if (editable()) {
+      <button
+        type="button"
+        class="btn btn--small"
+        style="margin-top: 0.75rem"
+        (click)="addLine()"
+        data-testid="add-line"
+      >
+        <app-icon name="plus" /> {{ 'orders.addLine' | t }}
+      </button>
+    }
+
+    <dl class="totals">
+      <dt>{{ 'orders.subtotal' | t }}</dt>
+      <dd class="num">
+        {{ fmt.money(current && !editable() ? current.subtotal : totals().subtotal) }}
+      </dd>
+      <dt>{{ 'orders.vat' | t }}</dt>
+      <dd class="num">{{ fmt.money(current && !editable() ? current.vat : totals().vat) }}</dd>
+      <dt class="grand">{{ 'orders.total' | t }}</dt>
+      <dd class="num grand" data-testid="order-total">
+        {{ fmt.money(current && !editable() ? current.total : totals().total) }}
+      </dd>
+    </dl>
+
+    @if (editable()) {
+      <div class="form-actions">
+        <a class="btn" [routerLink]="cfg().route">{{ 'common.cancel' | t }}</a>
+        <button type="submit" class="btn btn--primary" [disabled]="busy()" data-testid="save-order">
+          {{ (busy() ? 'common.saving' : 'orders.saveDraft') | t }}
+        </button>
+      </div>
+    }
+  </form>
+}

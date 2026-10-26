@@ -1,0 +1,150 @@
+<header class="page-header">
+  <div>
+    <h1>{{ 'products.title' | t }}</h1>
+    <p>{{ 'products.subtitle' | t }}</p>
+  </div>
+  <div class="page-header__actions">
+    <a class="btn btn--primary" routerLink="/products/new" data-testid="new-product"
+      ><app-icon name="plus" /> {{ 'products.new' | t }}</a
+    >
+  </div>
+</header>
+
+<div class="toolbar" role="search">
+  <div class="search">
+    <label class="visually-hidden" for="product-search">{{ 'common.search' | t }}</label>
+    <input
+      id="product-search"
+      type="search"
+      [value]="searchText()"
+      (input)="onSearch($any($event.target).value)"
+      [placeholder]="'products.searchPlaceholder' | t"
+    />
+  </div>
+  <div>
+    <label class="visually-hidden" for="product-category">{{ 'products.category' | t }}</label>
+    <select
+      id="product-category"
+      [value]="categoryId() ?? ''"
+      (change)="setFilter({ categoryId: $any($event.target).value || null })"
+    >
+      <option value="">{{ 'products.anyCategory' | t }}</option>
+      @for (c of categories.value() ?? []; track c.id) {
+        <option [value]="c.id" [selected]="'' + c.id === categoryId()">{{ c.name }}</option>
+      }
+    </select>
+  </div>
+  <div>
+    <label class="visually-hidden" for="product-status">{{ 'common.status' | t }}</label>
+    <select id="product-status" (change)="setFilter({ status: $any($event.target).value || null })">
+      <option value="">{{ 'products.anyStatus' | t }}</option>
+      @for (s of statuses; track s) {
+        <option [value]="s" [selected]="s === status()">{{ 'stockStatus.' + s | t }}</option>
+      }
+    </select>
+  </div>
+  <label class="checkbox">
+    <input
+      type="checkbox"
+      [checked]="archived() === '1'"
+      (change)="setFilter({ archived: $any($event.target).checked ? '1' : null })"
+    />
+    {{ 'products.archived' | t }}
+  </label>
+</div>
+
+@if (errorText()) {
+  <div class="alert alert--danger" role="alert">
+    {{ errorText() }}
+    <button type="button" class="btn btn--small" (click)="products.reload()">
+      {{ 'app.retry' | t }}
+    </button>
+  </div>
+} @else if (products.isLoading() && !products.hasValue()) {
+  <div class="loading" role="status"><span class="spinner"></span>{{ 'app.loading' | t }}</div>
+} @else if (products.value(); as result) {
+  @if (result.content.length === 0) {
+    <div class="card empty-state">
+      <p>{{ (hasFilters() ? 'common.noResults' : 'common.empty') | t }}</p>
+      @if (hasFilters()) {
+        <button type="button" class="btn" (click)="clearFilters()">{{ 'common.all' | t }}</button>
+      }
+    </div>
+  } @else {
+    <div class="table-wrap" [attr.aria-busy]="products.isLoading()">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">{{ 'products.name' | t }}</th>
+            <th scope="col">{{ 'products.category' | t }}</th>
+            <th scope="col" class="cell-end">{{ 'products.quantity' | t }}</th>
+            <th scope="col">{{ 'common.status' | t }}</th>
+            <th scope="col" class="cell-end">{{ 'products.costPrice' | t }}</th>
+            <th scope="col" class="cell-end">{{ 'products.salePrice' | t }}</th>
+            <th scope="col" class="cell-end">{{ 'products.stockValue' | t }}</th>
+            <th scope="col" class="cell-end">
+              <span class="visually-hidden">{{ 'common.actions' | t }}</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of result.content; track p.id) {
+            <tr>
+              <td class="wrap">
+                <a class="row-link" [routerLink]="['/products', p.id]"
+                  ><bdi>{{ p.name }}</bdi></a
+                >
+                <div class="sku" dir="ltr">{{ p.sku }}</div>
+              </td>
+              <td>
+                <bdi>{{ p.categoryName }}</bdi>
+              </td>
+              <td class="cell-end num">
+                {{ fmt.number(p.quantity) }} <small class="muted">{{ p.unit }}</small>
+              </td>
+              <td>
+                <span [class]="'badge badge--' + p.stockStatus.toLowerCase()">{{
+                  'stockStatus.' + p.stockStatus | t
+                }}</span>
+                @if (!p.active) {
+                  <span class="badge">{{ 'common.inactive' | t }}</span>
+                }
+              </td>
+              <td class="cell-end num">{{ fmt.amount(p.costPrice) }}</td>
+              <td class="cell-end num">{{ fmt.amount(p.salePrice) }}</td>
+              <td class="cell-end num">{{ fmt.amount(p.stockValue) }}</td>
+              <td>
+                <div class="row-actions">
+                  <a
+                    class="icon-btn"
+                    [routerLink]="['/products', p.id, 'edit']"
+                    [attr.aria-label]="('common.edit' | t) + ' ' + p.name"
+                    ><app-icon name="edit"
+                  /></a>
+                  @if (auth.isAdmin()) {
+                    <button
+                      type="button"
+                      class="icon-btn icon-btn--danger"
+                      (click)="remove(p)"
+                      [attr.aria-label]="('common.delete' | t) + ' ' + p.name"
+                    >
+                      <app-icon name="trash" />
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="table-foot">
+      <span>{{ 'common.showing' | t: { count: result.totalElements } }}</span>
+      <app-pagination
+        [page]="result.page"
+        [totalPages]="result.totalPages"
+        (pageChange)="setFilter({ page: $event })"
+      />
+    </div>
+  }
+}

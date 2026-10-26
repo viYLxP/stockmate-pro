@@ -1,0 +1,211 @@
+<header class="page-header">
+  <div>
+    <h1>{{ texts().title | t }}</h1>
+    <p>{{ texts().subtitle | t }}</p>
+  </div>
+  <div class="page-header__actions">
+    <button type="button" class="btn btn--primary" (click)="open(null)" data-testid="new-partner">
+      <app-icon name="plus" /> {{ texts().add | t }}
+    </button>
+  </div>
+</header>
+
+<div class="toolbar" role="search">
+  <div class="search">
+    <label class="visually-hidden" for="partner-search">{{ 'common.search' | t }}</label>
+    <input
+      id="partner-search"
+      type="search"
+      (input)="onSearch($any($event.target).value)"
+      [placeholder]="'partners.searchPlaceholder' | t"
+    />
+  </div>
+</div>
+
+@if (partners.error()) {
+  <div class="alert alert--danger" role="alert">
+    {{ 'app.loadFailed' | t }}
+    <button type="button" class="btn btn--small" (click)="partners.reload()">
+      {{ 'app.retry' | t }}
+    </button>
+  </div>
+} @else if (partners.isLoading() && !partners.hasValue()) {
+  <div class="loading" role="status"><span class="spinner"></span>{{ 'app.loading' | t }}</div>
+} @else if (partners.value(); as result) {
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">{{ 'common.name' | t }}</th>
+          <th scope="col">{{ 'common.phone' | t }}</th>
+          <th scope="col">{{ 'common.email' | t }}</th>
+          <th scope="col">{{ 'common.city' | t }}</th>
+          @if (isSupplier()) {
+            <th scope="col">{{ 'partners.vatNumber' | t }}</th>
+          }
+          <th scope="col" class="cell-end">
+            <span class="visually-hidden">{{ 'common.actions' | t }}</span>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (p of result.content; track p.id) {
+          <tr>
+            <td class="wrap">
+              <strong
+                ><bdi>{{ p.name }}</bdi></strong
+              >
+            </td>
+            <!-- Phone numbers and emails are always LTR so "+966" stays at the start. -->
+            <!-- أرقام الجوال والإيميلات دائمًا LTR حتى تبقى "+966" في البداية. -->
+            <td dir="ltr" class="num">
+              @if (p.phone) {
+                <a [href]="'tel:' + p.phone">{{ p.phone }}</a>
+              } @else {
+                —
+              }
+            </td>
+            <td dir="ltr">
+              @if (p.email) {
+                <a [href]="'mailto:' + p.email">{{ p.email }}</a>
+              } @else {
+                —
+              }
+            </td>
+            <td>
+              <bdi>{{ p.city ?? '—' }}</bdi>
+            </td>
+            @if (isSupplier()) {
+              <td class="mono" dir="ltr">{{ p.vatNumber ?? '—' }}</td>
+            }
+            <td>
+              <div class="row-actions">
+                <button
+                  type="button"
+                  class="icon-btn"
+                  (click)="open(p)"
+                  [attr.aria-label]="('common.edit' | t) + ' ' + p.name"
+                >
+                  <app-icon name="edit" />
+                </button>
+                @if (auth.isAdmin()) {
+                  <button
+                    type="button"
+                    class="icon-btn icon-btn--danger"
+                    (click)="remove(p)"
+                    [attr.aria-label]="('common.delete' | t) + ' ' + p.name"
+                  >
+                    <app-icon name="trash" />
+                  </button>
+                }
+              </div>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td [attr.colspan]="isSupplier() ? 6 : 5" class="empty-state">
+              {{ (search() ? 'common.noResults' : 'common.empty') | t }}
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <div class="table-foot">
+    <span>{{ 'common.showing' | t: { count: result.totalElements } }}</span>
+    <app-pagination
+      [page]="result.page"
+      [totalPages]="result.totalPages"
+      (pageChange)="page.set($event)"
+    />
+  </div>
+}
+
+<dialog #dialog class="dialog" aria-labelledby="partner-dialog-title">
+  <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <h2 id="partner-dialog-title">{{ (editing() ? texts().edit : texts().add) | t }}</h2>
+    @if (errorText()) {
+      <div class="alert alert--danger" role="alert">{{ errorText() }}</div>
+    }
+    <div class="form-grid">
+      <div class="field form-grid--full">
+        <label for="p-name">{{ 'common.name' | t }}</label>
+        <input id="p-name" formControlName="name" aria-describedby="p-name-err" />
+        <app-field-error
+          [control]="form.controls.name"
+          [server]="serverFields()['name']"
+          id="p-name-err"
+        />
+      </div>
+      <div class="field">
+        <label for="p-phone"
+          >{{ 'common.phone' | t }} <small>({{ 'common.optional' | t }})</small></label
+        >
+        <input
+          id="p-phone"
+          formControlName="phone"
+          type="tel"
+          dir="ltr"
+          [placeholder]="'partners.phoneHint' | t"
+          aria-describedby="p-phone-err"
+        />
+        <app-field-error
+          [control]="form.controls.phone"
+          [server]="serverFields()['phone']"
+          patternKey="validation.phoneFormat"
+          id="p-phone-err"
+        />
+      </div>
+      <div class="field">
+        <label for="p-email"
+          >{{ 'common.email' | t }} <small>({{ 'common.optional' | t }})</small></label
+        >
+        <input
+          id="p-email"
+          formControlName="email"
+          type="email"
+          dir="ltr"
+          aria-describedby="p-email-err"
+        />
+        <app-field-error
+          [control]="form.controls.email"
+          [server]="serverFields()['email']"
+          id="p-email-err"
+        />
+      </div>
+      <div class="field">
+        <label for="p-city"
+          >{{ 'common.city' | t }} <small>({{ 'common.optional' | t }})</small></label
+        >
+        <input id="p-city" formControlName="city" />
+      </div>
+      @if (isSupplier()) {
+        <div class="field">
+          <label for="p-vat"
+            >{{ 'partners.vatNumber' | t }} <small>({{ 'partners.vatHint' | t }})</small></label
+          >
+          <input
+            id="p-vat"
+            formControlName="vatNumber"
+            dir="ltr"
+            inputmode="numeric"
+            maxlength="15"
+            aria-describedby="p-vat-err"
+          />
+          <app-field-error
+            [control]="form.controls.vatNumber"
+            [server]="serverFields()['vatNumber']"
+            patternKey="validation.vatFormat"
+            id="p-vat-err"
+          />
+        </div>
+      }
+    </div>
+    <div class="dialog__actions">
+      <button type="button" class="btn" (click)="close()">{{ 'common.cancel' | t }}</button>
+      <button type="submit" class="btn btn--primary" [disabled]="saving()">
+        {{ (saving() ? 'common.saving' : 'common.save') | t }}
+      </button>
+    </div>
+  </form>
+</dialog>

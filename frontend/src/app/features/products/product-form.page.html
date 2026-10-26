@@ -1,0 +1,178 @@
+<a class="breadcrumb" [routerLink]="isEdit() ? ['/products', id()] : '/products'">
+  <app-icon name="chevron" class="icon--back" [flip]="true" /> {{ 'common.back' | t }}
+</a>
+<header class="page-header">
+  <div>
+    <h1>{{ (isEdit() ? 'products.edit' : 'products.new') | t }}</h1>
+    @if (product.value(); as p) {
+      <p class="sku" dir="ltr">{{ p.sku }}</p>
+    }
+  </div>
+</header>
+
+@if (isEdit() && product.isLoading()) {
+  <div class="loading" role="status"><span class="spinner"></span>{{ 'app.loading' | t }}</div>
+} @else if (isEdit() && product.error()) {
+  <div class="alert alert--danger" role="alert">{{ 'errors.NOT_FOUND' | t }}</div>
+} @else {
+  <form class="card" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    @if (errorText()) {
+      <div class="alert alert--danger" role="alert" data-testid="form-error">{{ errorText() }}</div>
+    }
+
+    <div class="form-grid">
+      <div class="field">
+        <label for="sku">{{ 'products.sku' | t }}</label>
+        <input
+          id="sku"
+          formControlName="sku"
+          dir="ltr"
+          autocomplete="off"
+          aria-describedby="sku-err"
+        />
+        <app-field-error
+          [control]="form.controls.sku"
+          [server]="serverFields()['sku']"
+          patternKey="validation.skuFormat"
+          id="sku-err"
+        />
+      </div>
+      <div class="field">
+        <label for="name">{{ 'products.name' | t }}</label>
+        <input id="name" formControlName="name" aria-describedby="name-err" />
+        <app-field-error
+          [control]="form.controls.name"
+          [server]="serverFields()['name']"
+          id="name-err"
+        />
+      </div>
+      <div class="field">
+        <label for="categoryId">{{ 'products.category' | t }}</label>
+        <select id="categoryId" formControlName="categoryId" aria-describedby="cat-err">
+          <option value="" disabled>{{ 'orders.choose' | t }}</option>
+          @for (c of categories.value() ?? []; track c.id) {
+            <option [value]="'' + c.id">{{ c.name }}</option>
+          }
+        </select>
+        <app-field-error
+          [control]="form.controls.categoryId"
+          [server]="serverFields()['categoryId']"
+          id="cat-err"
+        />
+      </div>
+      <div class="field">
+        <label for="supplierId"
+          >{{ 'products.supplier' | t }} <small>({{ 'common.optional' | t }})</small></label
+        >
+        <select id="supplierId" formControlName="supplierId">
+          <option value="">{{ 'products.noSupplier' | t }}</option>
+          @for (s of suppliers.value()?.content ?? []; track s.id) {
+            <option [value]="'' + s.id">{{ s.name }}</option>
+          }
+        </select>
+      </div>
+      <div class="field">
+        <label for="unit">{{ 'products.unit' | t }}</label>
+        <input id="unit" formControlName="unit" aria-describedby="unit-err" />
+        <app-field-error
+          [control]="form.controls.unit"
+          [server]="serverFields()['unit']"
+          id="unit-err"
+        />
+      </div>
+      <div class="field">
+        <label for="reorderLevel">{{ 'products.reorderLevel' | t }}</label>
+        <input
+          id="reorderLevel"
+          type="number"
+          min="0"
+          step="1"
+          formControlName="reorderLevel"
+          inputmode="numeric"
+          aria-describedby="reorder-err"
+        />
+        <app-field-error
+          [control]="form.controls.reorderLevel"
+          [server]="serverFields()['reorderLevel']"
+          id="reorder-err"
+        />
+      </div>
+      <div class="field">
+        <label for="costPrice">{{ 'products.costPrice' | t }} ({{ 'app.currency' | t }})</label>
+        <input
+          id="costPrice"
+          formControlName="costPrice"
+          inputmode="decimal"
+          dir="ltr"
+          aria-describedby="cost-err"
+        />
+        <app-field-error
+          [control]="form.controls.costPrice"
+          [server]="serverFields()['costPrice']"
+          patternKey="validation.Digits"
+          id="cost-err"
+        />
+      </div>
+      <div class="field">
+        <label for="salePrice">{{ 'products.salePrice' | t }} ({{ 'app.currency' | t }})</label>
+        <input
+          id="salePrice"
+          formControlName="salePrice"
+          inputmode="decimal"
+          dir="ltr"
+          aria-describedby="sale-err"
+        />
+        <app-field-error
+          [control]="form.controls.salePrice"
+          [server]="serverFields()['salePrice']"
+          patternKey="validation.Digits"
+          id="sale-err"
+        />
+        @if (margin() !== null) {
+          <p class="hint">
+            {{ 'products.margin' | t }}:
+            <span class="num" [class.qty-out]="margin()! < 0">{{ margin() }}%</span>
+          </p>
+        }
+      </div>
+
+      @if (!isEdit()) {
+        <div class="field">
+          <label for="openingQuantity">{{ 'products.openingQuantity' | t }}</label>
+          <input
+            id="openingQuantity"
+            type="number"
+            min="0"
+            step="1"
+            formControlName="openingQuantity"
+            inputmode="numeric"
+            aria-describedby="open-err open-hint"
+          />
+          <p class="hint" id="open-hint">{{ 'products.openingHint' | t }}</p>
+          <app-field-error [control]="form.controls.openingQuantity" id="open-err" />
+        </div>
+      } @else {
+        <div class="field">
+          <span class="field__label">{{ 'products.quantity' | t }}</span>
+          <strong class="num">{{ fmt.number(product.value()?.quantity) }}</strong>
+          <p class="hint">{{ 'products.quantityHint' | t }}</p>
+        </div>
+        <div class="field form-grid--full">
+          <label class="checkbox"
+            ><input type="checkbox" formControlName="active" />
+            {{ 'products.activeLabel' | t }}</label
+          >
+        </div>
+      }
+    </div>
+
+    <div class="form-actions">
+      <a class="btn" [routerLink]="isEdit() ? ['/products', id()] : '/products'">{{
+        'common.cancel' | t
+      }}</a>
+      <button type="submit" class="btn btn--primary" [disabled]="saving()" data-testid="save">
+        {{ (saving() ? 'common.saving' : 'common.save') | t }}
+      </button>
+    </div>
+  </form>
+}

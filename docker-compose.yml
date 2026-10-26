@@ -1,0 +1,44 @@
+# Full stack: PostgreSQL + Spring Boot API + Angular (nginx). Run: docker compose up --build
+# النظام كامل: PostgreSQL + Spring Boot API + Angular (nginx). التشغيل: docker compose up --build
+# Values come from .env (copy .env.example); the defaults below are for local demos only.
+# القيم تُقرأ من .env (انسخ .env.example)؛ والقيم الافتراضية تحت للتجربة المحلية فقط.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: stockmate
+      POSTGRES_USER: ${DB_USERNAME:-stockmate}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-stockmate}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d stockmate']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/stockmate
+      DB_USERNAME: ${DB_USERNAME:-stockmate}
+      DB_PASSWORD: ${DB_PASSWORD:-stockmate}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env (at least 32 characters)}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@12345}
+      STAFF_PASSWORD: ${STAFF_PASSWORD:-Staff@12345}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8081}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    ports:
+      - '${APP_PORT:-8081}:80'
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  db-data:
