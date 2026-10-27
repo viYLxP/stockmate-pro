@@ -87,6 +87,13 @@ To use the real gateways, put their **test** keys in `.env` and restart:
 
 The customer pays on the gateway's own page and comes back to `/pay/:id?returned=1`; the server then asks the gateway for the result (and captures or authorises Tabby / Tamara orders). Keys stay on the server and card numbers never reach it.
 
+## Deployment
+
+Every green CI run on `main` publishes ready-to-run images for amd64 and arm64:
+`ghcr.io/viylxp/stockmate-pro-backend` and `ghcr.io/viylxp/stockmate-pro-frontend` (workflow `release.yml`).
+The production server runs this app together with the other two Pro apps behind Caddy with automatic HTTPS,
+nightly database backups, an optional nightly demo-data reset and automatic updates. Server files and steps: [`masar-pro/deploy`](https://github.com/viYLxP/masar-pro/tree/main/deploy).
+
 ## Local development
 
 You need Java 21, Node 22 and Docker (for PostgreSQL and the Testcontainers tests).
@@ -194,6 +201,12 @@ docker compose up --build
 **الدفع:** بدون مفاتيح، كل الطرق تستخدم البوابة التجريبية المدمجة (بدون فلوس حقيقية). البطاقة `4111 1111 1111 1111` تنقبل، و`4000 0000 0000 0002` ترتفض. وللبوابات الحقيقية حط مفاتيحها التجريبية في `.env` (`CARD_PAYMENT_PROVIDER` و`MOYASAR_SECRET_KEY` أو `STRIPE_SECRET_KEY`، و`TABBY_SECRET_KEY` و`TABBY_MERCHANT_CODE`، و`TAMARA_API_TOKEN`). التفاصيل في قسم Payments setup فوق.
 
 غيّر كلمات المرور في `.env`. وفي التشغيل الفعلي خلّ `SEED_DEMO_DATA=false` وأنشئ المستخدمين من صفحة المستخدمين.
+
+### الرفع على سيرفر
+
+كل تشغيل CI ناجح على `main` ينشر صور جاهزة (amd64 وarm64) في `ghcr.io/viylxp/stockmate-pro-backend` و`-frontend`.
+والسيرفر يشغّل هذا التطبيق مع تطبيقي Pro الثانيين خلف Caddy بشهادة HTTPS تلقائية، ونسخ احتياطي يومي،
+وتصفير اختياري لبيانات العرض كل ليلة، وتحديث تلقائي. الملفات والخطوات: [`masar-pro/deploy`](https://github.com/viYLxP/masar-pro/tree/main/deploy).
 
 ### الاختبارات
 
