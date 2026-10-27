@@ -4,7 +4,9 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.time.YearMonth;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import org.slf4j.Logger;
@@ -34,6 +36,19 @@ import com.stockmate.sales.SalesService;
 import com.stockmate.user.AppUser;
 import com.stockmate.user.AppUserRepository;
 import com.stockmate.user.Role;
+import com.stockmate.common.City;
+import com.stockmate.payment.Payment;
+import com.stockmate.payment.PaymentDtos.SandboxRequest;
+import com.stockmate.payment.PaymentGateways;
+import com.stockmate.payment.PaymentService;
+import com.stockmate.product.ProductDtos.ShopListing;
+import com.stockmate.shop.ShopDtos.CartItem;
+import com.stockmate.shop.ShopDtos.CheckoutRequest;
+import com.stockmate.shop.ShopDtos.CheckoutResult;
+import com.stockmate.shop.ShopService;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
  * Fills an EMPTY database with demo users and realistic sample data on first start.
@@ -62,11 +77,18 @@ public class DemoDataSeeder implements ApplicationRunner {
     private final SalesService sales;
     private final JdbcTemplate jdbc;
     private final TransactionTemplate tx;
+    private final ShopService shop;
+    private final PaymentService paymentService;
+    private final PaymentGateways gateways;
 
     public DemoDataSeeder(AppProperties properties, AppUserRepository users, PasswordEncoder passwordEncoder,
                           CategoryService categories, PartnerService partners, ProductService productService,
                           ProductRepository productRepository, PurchaseService purchases, SalesService sales,
-                          JdbcTemplate jdbc, TransactionTemplate tx) {
+                          JdbcTemplate jdbc, TransactionTemplate tx, ShopService shop, PaymentService paymentService,
+                          PaymentGateways gateways) {
+        this.shop = shop;
+        this.paymentService = paymentService;
+        this.gateways = gateways;
         this.properties = properties;
         this.users = users;
         this.passwordEncoder = passwordEncoder;
@@ -88,18 +110,19 @@ public class DemoDataSeeder implements ApplicationRunner {
         // One transaction for the whole seed: either all demo data is created, or none (no half-filled database).
         // معاملة وحدة لكل البيانات: يا تنضاف كلها يا ولا شي (ما تبقى قاعدة بيانات نصها معبّى).
         tx.executeWithoutResult(status -> seed());
-        log.info("Demo data created. Log in as 'admin' or 'staff' (passwords from ADMIN_PASSWORD / STAFF_PASSWORD).");
+        log.info("Demo data created. Log in as 'admin' or 'staff', or as shop customer 0553001010 "
+                + "(passwords from ADMIN_PASSWORD / STAFF_PASSWORD / CUSTOMER_PASSWORD).");
     }
 
     private void seed() {
         users.save(new AppUser("admin", "System Admin", passwordEncoder.encode(properties.seed().adminPassword()), Role.ADMIN));
         users.save(new AppUser("staff", "Warehouse Staff", passwordEncoder.encode(properties.seed().staffPassword()), Role.STAFF));
 
-        long beverages = categories.create(new CategoryRequest("Beverages", "Water, juices and soft drinks")).id();
-        long groceries = categories.create(new CategoryRequest("Groceries", "Rice, oil, sugar and dry food")).id();
-        long cleaning = categories.create(new CategoryRequest("Cleaning", "Household cleaning supplies")).id();
-        long stationery = categories.create(new CategoryRequest("Stationery", "Office and school supplies")).id();
-        long electronics = categories.create(new CategoryRequest("Electronics", "Small electronics and accessories")).id();
+        long beverages = categories.create(new CategoryRequest("Beverages", "مشروبات", "Water, juices and soft drinks")).id();
+        long groceries = categories.create(new CategoryRequest("Groceries", "مواد غذائية", "Rice, oil, sugar and dry food")).id();
+        long cleaning = categories.create(new CategoryRequest("Cleaning", "منظفات", "Household cleaning supplies")).id();
+        long stationery = categories.create(new CategoryRequest("Stationery", "قرطاسية", "Office and school supplies")).id();
+        long electronics = categories.create(new CategoryRequest("Electronics", "إلكترونيات", "Small electronics and accessories")).id();
 
         long sup1 = partners.createSupplier(new SupplierRequest("Al Noor Trading Co.", "+966 11 400 1122", "sales@alnoor.example", "Riyadh", "300123456700003")).id();
         long sup2 = partners.createSupplier(new SupplierRequest("Red Sea Distribution", "+966 12 610 3344", "orders@redsea.example", "Jeddah", "310987654300003")).id();
@@ -173,7 +196,13 @@ public class DemoDataSeeder implements ApplicationRunner {
             saleTimes.add(now.minus(Duration.ofDays(random.nextInt(14))).minus(Duration.ofHours(1 + random.nextInt(6))));
         }
         saleTimes.sort(null);
+        // Shop orders are placed between the office sales in time order, so each product's ledger stays in date order.
+        // طلبات المتجر تنحط بين مبيعات المكتب بترتيب الوقت، حتى سجل كل منتج يبقى مرتب حسب التاريخ.
+        List<ShopPlan> shopOrders = new ArrayList<>(shopPlans(now));
         for (Instant when : saleTimes) {
+            while (!shopOrders.isEmpty() && shopOrders.getFirst().when().isBefore(when)) {
+                shopOrders.removeFirst().place().run();
+            }
             List<LineRequest> lines = new ArrayList<>();
             int lineCount = 1 + random.nextInt(3);
             List<String> pool = new ArrayList<>(sellable);
@@ -188,6 +217,7 @@ public class DemoDataSeeder implements ApplicationRunner {
             sales.confirm(order.id());
             backdate(order.number(), when);
         }
+        shopOrders.forEach(plan -> plan.place().run());
         // One draft and one cancelled order to show every status in the UI.
         // مسودة وطلب ملغي حتى تظهر كل الحالات في الواجهة.
         sales.create(new SalesOrderRequest(customerIds.get(1), "Waiting for customer approval",
@@ -195,7 +225,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         SalesOrderResponse cancelled = sales.create(new SalesOrderRequest(customerIds.get(2), null,
                 List.of(new LineRequest(id(created, "BEV-002"), 6, null))));
         sales.confirm(cancelled.id());
-        sales.cancel(cancelled.id());
+        sales.cancel(cancelled.id(), null);
     }
 
     // Same idea as backdate() for a received purchase order and its stock movements.
@@ -210,8 +240,168 @@ public class DemoDataSeeder implements ApplicationRunner {
 
     private ProductResponse product(String sku, String name, long categoryId, long supplierId, String unit,
                                     String cost, String price, int reorder, int opening) {
+        String[] shop = SHOP_TEXT.get(sku);
+        // Products without shop text stay office-only, to show that publishing is a choice.
+        // المنتجات اللي ما لها نص للمتجر تبقى للمكتب بس، عشان يبان إن النشر اختيار.
+        ShopListing listing = shop == null ? null : new ShopListing(true, shop[0], shop[1], shop[2]);
         return productService.create(new CreateProductRequest(sku, name, categoryId, supplierId, unit,
-                new BigDecimal(cost), new BigDecimal(price), reorder, opening));
+                new BigDecimal(cost), new BigDecimal(price), reorder, opening, listing));
+    }
+
+    // Arabic name, English description, Arabic description of each product shown in the shop.
+    // الاسم بالعربي، والوصف بالإنجليزي، والوصف بالعربي لكل منتج يظهر في المتجر.
+    private static final Map<String, String[]> SHOP_TEXT = Map.ofEntries(
+            Map.entry("BEV-001", new String[]{"مياه معدنية 330 مل (40 حبة)",
+                    "Natural mineral water in handy 330 ml bottles, 40 per carton.",
+                    "مياه معدنية طبيعية بعبوات 330 مل سهلة الحمل، 40 حبة بالكرتون."}),
+            Map.entry("BEV-002", new String[]{"عصير برتقال 1 لتر",
+                    "100% orange juice with no added sugar. Keep refrigerated after opening.",
+                    "عصير برتقال 100% بدون سكر مضاف. يحفظ بالثلاجة بعد الفتح."}),
+            Map.entry("BEV-003", new String[]{"قهوة عربية 500 جم",
+                    "Lightly roasted Arabic coffee with cardamom, ground and ready for the dallah.",
+                    "قهوة عربية محمصة تحميص خفيف مع الهيل، مطحونة وجاهزة للدلة."}),
+            Map.entry("BEV-004", new String[]{"شاي أخضر (100 كيس)",
+                    "Green tea in 100 individually wrapped bags.",
+                    "شاي أخضر 100 كيس مغلّف كل واحد لحاله."}),
+            Map.entry("GRO-001", new String[]{"أرز بسمتي 5 كجم",
+                    "Long-grain aged basmati rice that cooks fluffy, ideal for kabsa and mandi.",
+                    "أرز بسمتي طويل الحبة ومعتّق، يطلع مفلفل ومناسب للكبسة والمندي."}),
+            Map.entry("GRO-002", new String[]{"زيت دوار الشمس 1.8 لتر",
+                    "Pure sunflower oil for frying and cooking.",
+                    "زيت دوار الشمس نقي للقلي والطبخ."}),
+            Map.entry("GRO-003", new String[]{"سكر أبيض 2 كجم",
+                    "Fine white sugar in a resealable bag.",
+                    "سكر أبيض ناعم بكيس يتسكّر."}),
+            Map.entry("GRO-004", new String[]{"تمر سكري 1 كجم",
+                    "Qassim Sukkari dates, soft and sweet, packed in a gift box.",
+                    "تمر سكري القصيم، طري وحالي، معبّأ بعلبة هدية."}),
+            Map.entry("CLN-001", new String[]{"سائل غسيل صحون 1 لتر",
+                    "Lemon dishwashing liquid that cuts grease and is gentle on hands.",
+                    "سائل غسيل صحون بالليمون يشيل الدهون ولطيف على اليدين."}),
+            Map.entry("CLN-002", new String[]{"مسحوق غسيل 3 كجم",
+                    "Laundry powder for front and top loading machines.",
+                    "مسحوق غسيل للغسالات الأمامية والعلوية."}),
+            Map.entry("CLN-003", new String[]{"منظف أرضيات 2 لتر",
+                    "Floor cleaner with a long-lasting fresh scent.",
+                    "منظف أرضيات بريحة منعشة تدوم."}),
+            Map.entry("STA-001", new String[]{"ورق تصوير A4 (500 ورقة)",
+                    "80 gsm A4 copy paper for printers and copiers.",
+                    "ورق تصوير A4 وزن 80 جم للطابعات وآلات التصوير."}),
+            Map.entry("ELC-001", new String[]{"شاحن USB-C بقوة 20 واط",
+                    "20 W fast charger with a USB-C port, works with phones and tablets.",
+                    "شاحن سريع 20 واط بمنفذ USB-C، يشتغل مع الجوالات والأجهزة اللوحية."}),
+            Map.entry("ELC-002", new String[]{"ماوس لاسلكي",
+                    "Quiet wireless mouse with a USB receiver and up to 12 months battery life.",
+                    "ماوس لاسلكي هادي مع مستقبل USB، وبطاريته تكفي لين 12 شهر."}),
+            Map.entry("ELC-003", new String[]{"كيبل HDMI طول 2 متر",
+                    "High-speed HDMI cable, 2 m, supports 4K.",
+                    "كيبل HDMI عالي السرعة، طول 2 متر، يدعم 4K."}));
+
+    /**
+     * Shop customers and online orders in every state, created through the real checkout so stock, totals and
+     * payments follow the same rules as a real order.
+     * عملاء المتجر وطلبات أونلاين بكل الحالات، تنشأ من عملية الشراء الحقيقية حتى المخزون والإجماليات والدفع يمشون
+     * على نفس قواعد الطلب الحقيقي.
+     */
+    private List<ShopPlan> shopPlans(Instant now) {
+        String password = passwordEncoder.encode(properties.seed().customerPassword());
+        AppUser nora = customer("966553001010", "Nora Al-Qahtani", "nora@example.com", password);
+        AppUser faisal = customer("966553001001", "Faisal Al-Harbi", null, password);
+
+        // who (null = guest), what, how they pay, what happened next, and when it was ordered.
+        // مين (null = زائر)، وش طلب، وكيف يدفع، وش صار بعدها، ومتى طلب.
+        List<ShopPlan> plans = new ArrayList<>(List.of(
+                plan(now.minus(Duration.ofDays(6)), nora, null, null,
+                        List.of(item("GRO-001", 2), item("BEV-003", 1)), Payment.Method.CARD, "DELIVERED"),
+                plan(now.minus(Duration.ofDays(3)), null, "Sara Al-Otaibi", "0561234567",
+                        List.of(item("CLN-001", 3), item("CLN-003", 2)), Payment.Method.CASH, "DELIVERED"),
+                plan(now.minus(Duration.ofDays(2)), faisal, null, null,
+                        List.of(item("GRO-003", 2)), Payment.Method.CARD, "CANCELLED"),
+                plan(now.minus(Duration.ofDays(1)), nora, null, null,
+                        List.of(item("ELC-001", 1), item("ELC-003", 2), item("GRO-004", 1)), Payment.Method.TABBY,
+                        "SHIPPED"),
+                plan(now.minus(Duration.ofMinutes(400)), null, "Khalid Al-Dosari", "0509876543",
+                        List.of(item("BEV-001", 4), item("GRO-002", 2)), Payment.Method.TAMARA, "NEW"),
+                plan(now.minus(Duration.ofMinutes(30)), faisal, null, null,
+                        List.of(item("STA-001", 2), item("BEV-002", 6)), Payment.Method.CASH, "NEW"),
+                plan(now.minus(Duration.ofMinutes(20)), nora, null, null,
+                        List.of(item("BEV-004", 2)), Payment.Method.CARD, "NEW")));
+        plans.sort(java.util.Comparator.comparing(ShopPlan::when));
+        return plans;
+    }
+
+    // One demo shop order, placed when its turn comes in the timeline. / طلب متجر تجريبي، ينطلب لما يجي دوره بالترتيب الزمني.
+    private record ShopPlan(Instant when, Runnable place) {
+    }
+
+    private ShopPlan plan(Instant when, AppUser account, String guestName, String guestPhone, List<CartItem> items,
+                          Payment.Method method, String outcome) {
+        return new ShopPlan(when, () -> shopOrder(account, guestName, guestPhone, items, method, outcome, when));
+    }
+
+    private AppUser customer(String phone, String name, String email, String passwordHash) {
+        AppUser user = new AppUser(phone, name, passwordHash, Role.CUSTOMER);
+        user.setPhone(phone);
+        user.setEmail(email);
+        return users.save(user);
+    }
+
+    private CartItem item(String sku, int quantity) {
+        return new CartItem(productRepository.findBySkuIgnoreCase(sku).orElseThrow().getId(), quantity);
+    }
+
+    private void shopOrder(AppUser account, String guestName, String guestPhone, List<CartItem> items,
+                           Payment.Method method, String outcome, Instant when) {
+        // Online methods are paid on the built-in test checkout. With a real gateway configured that is not
+        // possible from here, so those demo orders become cash on delivery instead.
+        // الطرق الأونلاين تندفع على صفحة الدفع التجريبية المدمجة. ولو فيه بوابة حقيقية مضبوطة ما ينفع من هنا،
+        // فهالطلبات التجريبية تصير دفع عند الاستلام بدالها.
+        Payment.Method how = method == Payment.Method.CASH
+                || gateways.forMethod(method).provider() == Payment.Provider.SANDBOX ? method : Payment.Method.CASH;
+        if (account != null) {
+            SecurityContextHolder.getContext().setAuthentication(UsernamePasswordAuthenticationToken.authenticated(
+                    account.getUsername(), null, List.of(new SimpleGrantedAuthority("ROLE_CUSTOMER"))));
+        }
+        CheckoutResult result;
+        try {
+            result = shop.checkout(new CheckoutRequest(items, guestName, guestPhone, null, City.RIYADH,
+                    "Al Olaya", "King Fahd Road, building 12", how, null));
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+        if (result.paymentId() != null && !outcome.equals("CANCELLED")) {
+            boolean card = how == Payment.Method.CARD;
+            paymentService.payInSandbox(result.paymentId(), new SandboxRequest(card ? "4406 4700 0000 0007" : null,
+                    card ? 12 : null, card ? YearMonth.now().getYear() + 2 : null, card ? "123" : null,
+                    card ? "Demo Customer" : null, card ? null : Boolean.TRUE));
+        }
+        Long id = jdbc.queryForObject("select id from sales_order where number = ?", Long.class, result.number());
+        switch (outcome) {
+            case "SHIPPED" -> sales.ship(id);
+            case "DELIVERED" -> {
+                sales.ship(id);
+                sales.deliver(id, true);
+            }
+            case "CANCELLED" -> sales.cancel(id, null);
+            default -> {
+            }
+        }
+        backdate(result.number(), when);
+        java.sql.Timestamp paid = java.sql.Timestamp.from(when.plus(Duration.ofMinutes(3)));
+        // The later steps happened hours after the order, like in a real shop. / الخطوات اللي بعده صارت بعد ساعات، مثل محل حقيقي.
+        java.sql.Timestamp delivered = java.sql.Timestamp.from(when.plus(Duration.ofHours(28)));
+        jdbc.update("update payment set created_at = ? where order_id = ? and method <> 'CASH'",
+                java.sql.Timestamp.from(when.plus(Duration.ofMinutes(1))), id);
+        jdbc.update("update payment set paid_at = ? where order_id = ? and method <> 'CASH' and paid_at is not null",
+                paid, id);
+        jdbc.update("update payment set created_at = ?, paid_at = ? where order_id = ? and method = 'CASH'",
+                delivered, delivered, id);
+        jdbc.update("update sales_order set pay_by = null where id = ?", id);
+        jdbc.update("update sales_order set shipped_at = ? where id = ? and shipped_at is not null",
+                java.sql.Timestamp.from(when.plus(Duration.ofHours(4))), id);
+        jdbc.update("update sales_order set delivered_at = ? where id = ? and delivered_at is not null", delivered, id);
+        jdbc.update("update sales_order set cancelled_at = ? where id = ? and cancelled_at is not null",
+                java.sql.Timestamp.from(when.plus(Duration.ofMinutes(20))), id);
     }
 
     private static Long id(List<ProductResponse> products, String sku) {

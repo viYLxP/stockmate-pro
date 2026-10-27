@@ -31,6 +31,10 @@ public class Category {
     @Column(length = 255)
     private String description;
 
+    // Shown in the Arabic shop; the English name is used when it is empty. / يظهر في المتجر بالعربي؛ ولو فاضي نستخدم الإنجليزي.
+    @Column(name = "name_ar", length = 100)
+    private String nameAr;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -53,6 +57,14 @@ public class Category {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getNameAr() {
+        return nameAr;
+    }
+
+    public void setNameAr(String nameAr) {
+        this.nameAr = nameAr;
     }
 
     public String getDescription() {

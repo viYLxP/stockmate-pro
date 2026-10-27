@@ -30,7 +30,15 @@ public final class DashboardDtos {
             List<DailySales> dailySales,
             List<TopProductRow> topProducts,
             List<ProductResponse> reorderList,
-            List<MovementResponse> recentMovements) {
+            List<MovementResponse> recentMovements,
+            Shop shop) {
+    }
+
+    /**
+     * The online shop at a glance: orders waiting for the warehouse, and money received online this month.
+     * المتجر الإلكتروني بنظرة: الطلبات اللي تنتظر المستودع، والفلوس اللي وصلت أونلاين هالشهر.
+     */
+    public record Shop(long toShip, long outForDelivery, BigDecimal collectedThisMonth) {
     }
 
     public record DailySales(LocalDate date, BigDecimal total, int orders) {

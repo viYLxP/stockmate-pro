@@ -15,9 +15,11 @@ import com.stockmate.common.ApiException;
 import com.stockmate.common.ErrorCode;
 import com.stockmate.common.Money;
 import com.stockmate.common.PageResponse;
+import com.stockmate.common.Text;
 import com.stockmate.partner.PartnerService;
 import com.stockmate.product.ProductDtos.CreateProductRequest;
 import com.stockmate.product.ProductDtos.ProductResponse;
+import com.stockmate.product.ProductDtos.ShopListing;
 import com.stockmate.product.ProductDtos.UpdateProductRequest;
 import com.stockmate.purchase.PurchaseOrderRepository;
 import com.stockmate.sales.SalesOrderRepository;
@@ -93,6 +95,7 @@ public class ProductService {
         product.setCostPrice(Money.round(r.costPrice()));
         product.setSalePrice(Money.round(r.salePrice()));
         product.setReorderLevel(r.reorderLevel());
+        applyShop(product, r.shop());
         // saveAndFlush gives us the generated id now, which the opening movement needs.
         // saveAndFlush يعطينا رقم المنتج فورًا، والحركة الافتتاحية تحتاجه.
         Product saved = products.saveAndFlush(product);
@@ -129,6 +132,7 @@ public class ProductService {
         product.setSalePrice(Money.round(r.salePrice()));
         product.setReorderLevel(r.reorderLevel());
         product.setActive(r.active());
+        applyShop(product, r.shop());
         // Flush now so the response carries the new version number.
         // نحفظ فورًا حتى يحمل الرد رقم النسخة الجديد.
         products.flush();
@@ -151,6 +155,13 @@ public class ProductService {
 
     public Product product(Long id) {
         return products.findById(id).orElseThrow(() -> ApiException.notFound("product", id));
+    }
+
+    private static void applyShop(Product product, ShopListing shop) {
+        product.setPublished(shop != null && shop.published());
+        product.setNameAr(shop == null ? null : Text.blankToNull(shop.nameAr()));
+        product.setDescription(shop == null ? null : Text.blankToNull(shop.description()));
+        product.setDescriptionAr(shop == null ? null : Text.blankToNull(shop.descriptionAr()));
     }
 
     // SKUs are stored uppercase so "bev-001" and "BEV-001" are the same code.

@@ -83,6 +83,21 @@ public class Product {
     @Column(nullable = false)
     private boolean active = true;
 
+    // Shown in the online shop (an active product can still be office-only). / يظهر في المتجر (والمنتج النشط ممكن يكون للمكتب بس).
+    @Column(nullable = false)
+    private boolean published;
+
+    @Column(length = 1000)
+    private String description;
+
+    // Arabic name and description for the shop; empty means the English text is shown.
+    // الاسم والوصف بالعربي للمتجر؛ لو فاضي ينعرض النص الإنجليزي.
+    @Column(name = "name_ar", length = 150)
+    private String nameAr;
+
+    @Column(name = "description_ar", length = 1000)
+    private String descriptionAr;
+
     // Optimistic locking: JPA increments it on every update and rejects stale writes.
     // القفل المتفائل: JPA يزيده مع كل تعديل ويرفض الحفظ لو كانت النسخة قديمة.
     @Version
@@ -214,6 +229,38 @@ public class Product {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public boolean isPublished() {
+        return published;
+    }
+
+    public void setPublished(boolean published) {
+        this.published = published;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getNameAr() {
+        return nameAr;
+    }
+
+    public void setNameAr(String nameAr) {
+        this.nameAr = nameAr;
+    }
+
+    public String getDescriptionAr() {
+        return descriptionAr;
+    }
+
+    public void setDescriptionAr(String descriptionAr) {
+        this.descriptionAr = descriptionAr;
     }
 
     public long getVersion() {

@@ -51,6 +51,10 @@ public abstract class IntegrationTest {
 
     protected static final String ADMIN_PASSWORD = "Admin@12345";
     protected static final String STAFF_PASSWORD = "Staff@12345";
+    protected static final String CUSTOMER_PASSWORD = "Customer@12345";
+    // A test card the built-in sandbox approves (Visa, passes the Luhn check). / بطاقة تجريبية يوافق عليها الوضع التجريبي.
+    protected static final String TEST_CARD = """
+            {"cardNumber":"4111 1111 1111 1111","expMonth":12,"expYear":2099,"cvc":"123","cardHolder":"Test Buyer"}""";
 
     @Autowired
     protected MockMvc mvc;
@@ -73,7 +77,7 @@ public abstract class IntegrationTest {
         // RESTART IDENTITY also resets ids and RESTART on the sequences makes order numbers predictable (PO-000001).
         // RESTART IDENTITY يصفّر الأرقام، وإعادة تشغيل الـ sequences تخلي أرقام الطلبات متوقعة (PO-000001).
         jdbc.execute("""
-                truncate table stock_movement, sales_order_line, sales_order, purchase_order_line, purchase_order,
+                truncate table payment, stock_movement, sales_order_line, sales_order, purchase_order_line, purchase_order,
                 product, customer, supplier, category, app_user restart identity cascade
                 """);
         jdbc.execute("alter sequence purchase_order_number_seq restart with 1");
@@ -142,6 +146,46 @@ public abstract class IntegrationTest {
                 {"sku":"%s","name":"Product %s","categoryId":%d,"unit":"piece","costPrice":%s,"salePrice":%s,
                  "reorderLevel":%d,"openingQuantity":%d}
                 """.formatted(sku, sku, categoryId, cost, price, reorderLevel, openingQuantity), token);
+    }
+
+    // A product shown in the online shop. / منتج معروض في المتجر الإلكتروني.
+    protected long shopProduct(String token, String sku, long categoryId, String price, int openingQuantity)
+            throws Exception {
+        return createId("/api/products", """
+                {"sku":"%s","name":"Product %s","categoryId":%d,"unit":"piece","costPrice":1.00,"salePrice":%s,
+                 "reorderLevel":0,"openingQuantity":%d,
+                 "shop":{"published":true,"nameAr":"منتج %s","description":"Nice","descriptionAr":"حلو"}}
+                """.formatted(sku, sku, categoryId, price, openingQuantity, sku), token);
+    }
+
+    // Signs up a shop customer and returns their token. / يسجّل عميل متجر ويرجّع رمزه.
+    protected String registerCustomer(String name, String phone) throws Exception {
+        String body = mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fullName":"%s","phone":"%s","email":null,"password":"%s"}
+                                """.formatted(name, phone, CUSTOMER_PASSWORD)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return JsonPath.read(body, "$.token");
+    }
+
+    /**
+     * A shop checkout body for a guest. items is the raw JSON array, e.g. [{"productId":1,"quantity":2}].
+     * جسم طلب شراء من المتجر لزائر. items مصفوفة JSON جاهزة.
+     */
+    protected static String checkoutJson(String items, String phone, String method) {
+        return """
+                {"items":%s,"fullName":"Reem Al Qahtani","phone":"%s","email":"reem@example.com","city":"RIYADH",
+                 "district":"Al Sahafa","address":"Street 5, house 12","paymentMethod":"%s"}
+                """.formatted(items, phone, method);
+    }
+
+    protected static MockHttpServletRequestBuilder json(MockHttpServletRequestBuilder request) {
+        return request.contentType(MediaType.APPLICATION_JSON);
+    }
+
+    protected String paymentStatusOf(String orderNumber) {
+        return jdbc.queryForObject("select payment_status from sales_order where number = ?", String.class, orderNumber);
     }
 
     protected int quantityOf(long productId) {

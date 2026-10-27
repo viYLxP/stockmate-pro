@@ -3,3 +3,12 @@ stockmate:
     enabled: false
   jwt:
     secret: test-secret-that-is-long-enough-for-hs256-0123
+  # High limits so normal tests never hit them; RateLimitTest checks the limiter on its own.
+  # حدود عالية حتى ما توصلها الاختبارات العادية؛ واختبار RateLimitTest يفحص المحدّد لحاله.
+  rate-limit:
+    orders: 1000
+    lookups: 1000
+  shop:
+    # Tests run the payment timeout themselves, at the moment they choose.
+    # الاختبارات تشغّل انتهاء مهلة الدفع بنفسها، باللحظة اللي تختارها.
+    expiry-job: false

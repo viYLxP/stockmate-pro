@@ -36,8 +36,10 @@ import com.stockmate.security.ProblemAuthenticationEntryPoint;
 import com.stockmate.security.ProblemAccessDeniedHandler;
 
 /**
- * Security setup: stateless JWT authentication with two roles, ADMIN and STAFF.
- * إعداد الأمان: مصادقة JWT بدون جلسات (stateless) مع دورين: ADMIN و STAFF.
+ * Security setup: stateless JWT authentication. ADMIN and STAFF use the back office; CUSTOMER is a shop account;
+ * visitors use the shop without logging in.
+ * إعداد الأمان: مصادقة JWT بدون جلسات (stateless). ADMIN و STAFF يستخدمون لوحة المكتب؛ وCUSTOMER حساب في
+ * المتجر؛ والزوار يستخدمون المتجر بدون دخول.
  *
  * <p>We use Spring Security's built-in OAuth2 Resource Server support to validate tokens instead of a
  * hand-written filter: it checks the signature and expiry for us and is well tested.</p>
@@ -66,19 +68,26 @@ public class SecurityConfig {
                 // لا ننشئ جلسة HTTP أبدًا: كل طلب لازم يحمل رمزه.
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints: login, health check and the API docs.
-                        // روابط عامة: تسجيل الدخول، فحص الصحة، وتوثيق الـ API.
-                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                        // Public endpoints: login, sign-up, health check and the API docs.
+                        // روابط عامة: تسجيل الدخول، والتسجيل، وفحص الصحة، وتوثيق الـ API.
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/register").permitAll()
                         .requestMatchers("/actuator/health", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        // The shop and the payment page are open to visitors.
+                        // المتجر وصفحة الدفع مفتوحين للزوار.
+                        .requestMatchers("/api/shop/**", "/api/public/**").permitAll()
+                        // A customer's own pages. / صفحات العميل نفسه.
+                        .requestMatchers("/api/account/**").hasRole("CUSTOMER")
+                        // Every signed-in account can ask "who am I". / أي حساب داخل يقدر يسأل "مين أنا".
+                        .requestMatchers("/api/auth/**").authenticated()
                         // User management is admin-only.
                         // إدارة المستخدمين للمدير فقط.
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
                         // Deleting master data is admin-only; staff can still create and edit.
                         // حذف البيانات الأساسية للمدير فقط، والموظف يقدر يضيف ويعدّل.
                         .requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("ADMIN")
-                        // Everything else under /api needs a valid token.
-                        // باقي روابط /api تحتاج رمزًا صالحًا.
-                        .requestMatchers("/api/**").authenticated()
+                        // Everything else under /api is the back office: staff only, never customers.
+                        // باقي روابط /api هي لوحة المكتب: للموظفين بس، أبدًا للعملاء.
+                        .requestMatchers("/api/**").hasAnyRole("ADMIN", "STAFF")
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(oauth -> oauth
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))

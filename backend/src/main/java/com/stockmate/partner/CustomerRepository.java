@@ -8,6 +8,11 @@ import org.springframework.data.repository.query.Param;
 
 public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
+    java.util.Optional<Customer> findByUser(com.stockmate.user.AppUser user);
+
+    // A guest who ordered before with the same phone keeps one customer record. / الزائر اللي طلب قبل بنفس الجوال يبقى له سجل عميل واحد.
+    java.util.Optional<Customer> findFirstByPhoneAndUserIsNullOrderByIdAsc(String phone);
+
     // Same search rules as suppliers.
     // نفس قواعد البحث في الموردين.
     @Query("""

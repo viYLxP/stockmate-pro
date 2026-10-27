@@ -22,6 +22,8 @@ import com.stockmate.product.ProductDtos.ProductResponse;
 import com.stockmate.product.ProductRepository;
 import com.stockmate.purchase.PurchaseOrderRepository;
 import com.stockmate.purchase.PurchaseStatus;
+import com.stockmate.payment.PaymentRepository;
+import com.stockmate.sales.Fulfilment;
 import com.stockmate.sales.SalesOrder;
 import com.stockmate.sales.SalesOrderRepository;
 import com.stockmate.sales.SalesStatus;
@@ -44,9 +46,11 @@ public class DashboardService {
     private final PurchaseOrderRepository purchases;
     private final StockMovementRepository movements;
     private final AppProperties properties;
+    private final PaymentRepository payments;
 
     public DashboardService(ProductRepository products, SalesOrderRepository sales, PurchaseOrderRepository purchases,
-                            StockMovementRepository movements, AppProperties properties) {
+                            StockMovementRepository movements, AppProperties properties, PaymentRepository payments) {
+        this.payments = payments;
         this.products = products;
         this.sales = sales;
         this.purchases = purchases;
@@ -81,7 +85,9 @@ public class DashboardService {
                                 row.getQuantity(), row.getRevenue()))
                         .toList(),
                 products.findReorderList(PageRequest.of(0, 8)).stream().map(ProductResponse::from).toList(),
-                movements.findTop8ByOrderByCreatedAtDescIdDesc().stream().map(MovementResponse::from).toList());
+                movements.findTop8ByOrderByCreatedAtDescIdDesc().stream().map(MovementResponse::from).toList(),
+                new DashboardDtos.Shop(sales.countOpenOnline(Fulfilment.NEW), sales.countOpenOnline(Fulfilment.SHIPPED),
+                        payments.collected(monthStart, tomorrow)));
     }
 
     /**

@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.stockmate.common.PageResponse;
+import com.stockmate.sales.SalesDtos.CancelRequest;
+import com.stockmate.sales.SalesDtos.DeliverRequest;
 import com.stockmate.sales.SalesDtos.SalesOrderRequest;
 import com.stockmate.sales.SalesDtos.SalesOrderResponse;
 import com.stockmate.sales.SalesDtos.SalesOrderSummary;
@@ -37,10 +39,11 @@ public class SalesController {
 
     @GetMapping
     public PageResponse<SalesOrderSummary> list(@RequestParam(required = false) SalesStatus status,
+                                                @RequestParam(required = false) SalesChannel channel,
                                                 @RequestParam(required = false) Long customerId,
                                                 @RequestParam(defaultValue = "") String q,
                                                 @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC) Pageable pageable) {
-        return service.search(status, customerId, q, pageable);
+        return service.search(status, channel, customerId, q, pageable);
     }
 
     @GetMapping("/{id}")
@@ -64,8 +67,24 @@ public class SalesController {
         return service.confirm(id);
     }
 
+    // The body is optional, so the older "cancel" call without a reason keeps working. / الجسم اختياري.
     @PostMapping("/{id}/cancel")
-    public SalesOrderResponse cancel(@PathVariable Long id) {
-        return service.cancel(id);
+    public SalesOrderResponse cancel(@PathVariable Long id, @Valid @RequestBody(required = false) CancelRequest body) {
+        return service.cancel(id, body == null ? null : body.reason());
+    }
+
+    @PostMapping("/{id}/ship")
+    public SalesOrderResponse ship(@PathVariable Long id) {
+        return service.ship(id);
+    }
+
+    @PostMapping("/{id}/deliver")
+    public SalesOrderResponse deliver(@PathVariable Long id, @RequestBody(required = false) DeliverRequest body) {
+        return service.deliver(id, body != null && body.cashCollected());
+    }
+
+    @PostMapping("/{id}/cash")
+    public SalesOrderResponse recordCash(@PathVariable Long id) {
+        return service.recordCash(id);
     }
 }

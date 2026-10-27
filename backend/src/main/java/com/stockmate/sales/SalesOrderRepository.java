@@ -25,14 +25,44 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, Long> {
     @EntityGraph(attributePaths = {"customer", "lines", "lines.product"})
     Optional<SalesOrder> findWithLinesById(Long id);
 
+    @EntityGraph(attributePaths = {"customer", "lines", "lines.product", "lines.product.category"})
+    Optional<SalesOrder> findWithLinesByNumber(String number);
+
+    // A customer's own shop orders, newest first. / طلبات العميل نفسه من المتجر، الأحدث أول.
+    @EntityGraph(attributePaths = {"lines", "lines.product"})
+    @Query("""
+            select distinct o from SalesOrder o
+            where o.customer.user.id = :userId and o.channel = com.stockmate.sales.SalesChannel.ONLINE
+            order by o.createdAt desc, o.id desc
+            """)
+    List<SalesOrder> findShopOrdersOfUser(@Param("userId") Long userId);
+
+    // Online orders whose payment time ran out while still unpaid. / طلبات أونلاين خلصت مهلة دفعها وهي ما انْدفعت.
+    @Query("""
+            select o.id from SalesOrder o
+            where o.payBy < :now and o.status = com.stockmate.sales.SalesStatus.CONFIRMED
+              and o.paymentStatus = com.stockmate.sales.PaymentStatus.UNPAID
+            """)
+    List<Long> findExpiredUnpaid(@Param("now") Instant now);
+
+    @Query("""
+            select count(o) from SalesOrder o
+            where o.channel = com.stockmate.sales.SalesChannel.ONLINE
+              and o.status = com.stockmate.sales.SalesStatus.CONFIRMED and o.fulfilment = :fulfilment
+            """)
+    long countOpenOnline(@Param("fulfilment") Fulfilment fulfilment);
+
     @EntityGraph(attributePaths = "customer")
     @Query("""
             select o from SalesOrder o
             where (:status is null or o.status = :status)
+              and (:channel is null or o.channel = :channel)
               and (:customerId is null or o.customer.id = :customerId)
-              and (:q = '' or lower(o.number) like lower(concat('%', :q, '%')))
+              and (:q = '' or lower(o.number) like lower(concat('%', :q, '%'))
+                   or lower(o.customer.name) like lower(concat('%', :q, '%')))
             """)
-    Page<SalesOrder> search(@Param("status") SalesStatus status, @Param("customerId") Long customerId,
+    Page<SalesOrder> search(@Param("status") SalesStatus status, @Param("channel") SalesChannel channel,
+                            @Param("customerId") Long customerId,
                             @Param("q") String q, Pageable pageable);
 
     // Revenue (incl. VAT) of orders confirmed in [from, to) that are still confirmed (cancelled ones excluded).

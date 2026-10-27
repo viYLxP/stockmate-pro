@@ -47,6 +47,14 @@ public class AppUser {
     @Column(nullable = false)
     private boolean active = true;
 
+    // Customers: the normalised mobile (also their username) and an optional email.
+    // العملاء: الجوال بالشكل الموحّد (وهو اسم الدخول برضو) وإيميل اختياري.
+    @Column(length = 20)
+    private String phone;
+
+    @Column(length = 150)
+    private String email;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -101,6 +109,22 @@ public class AppUser {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public Instant getCreatedAt() {

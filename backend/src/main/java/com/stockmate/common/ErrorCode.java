@@ -48,6 +48,24 @@ public enum ErrorCode {
     // An admin cannot disable or demote their own account, so the system is never locked out.
     // منع المدير من إيقاف حسابه أو تغيير صلاحيته بنفسه حتى لا يُقفل النظام.
     CANNOT_MODIFY_SELF(HttpStatus.CONFLICT),
+    // Too many requests from the same visitor in a short time on the public shop.
+    // طلبات كثيرة من نفس الزائر في وقت قصير على المتجر العام.
+    RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS),
+    // A customer account with this mobile number already exists. / فيه حساب عميل بنفس رقم الجوال.
+    PHONE_REGISTERED(HttpStatus.CONFLICT),
+    // The current password typed when changing it is wrong. / كلمة المرور الحالية غلط وقت تغييرها.
+    WRONG_PASSWORD(HttpStatus.BAD_REQUEST),
+    // A product in the cart is no longer sold in the shop. Details: the product id.
+    // منتج في السلة ما عاد ينباع في المتجر. التفاصيل: رقم المنتج.
+    PRODUCT_UNAVAILABLE(HttpStatus.CONFLICT),
+    // Paying is not possible now: already paid, delivered, or the order was cancelled.
+    // الدفع مو متاح الحين: انْدفع قبل، أو توصّل، أو الطلب ملغي.
+    PAYMENT_NOT_ALLOWED(HttpStatus.CONFLICT),
+    // Instalments (Tabby/Tamara) are not offered for this amount or this customer. Details: min and max amount.
+    // التقسيط (تابي/تمارا) مو متاح لهالمبلغ أو هالعميل. التفاصيل: أقل وأعلى مبلغ.
+    INSTALMENTS_NOT_AVAILABLE(HttpStatus.CONFLICT),
+    // The payment gateway did not answer or refused the call. / بوابة الدفع ما ردّت أو رفضت الطلب.
+    PAYMENT_PROVIDER_ERROR(HttpStatus.BAD_GATEWAY),
     // Unexpected server error.
     // خطأ غير متوقع في الخادم.
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR);

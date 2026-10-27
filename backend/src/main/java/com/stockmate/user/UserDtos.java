@@ -18,11 +18,12 @@ public final class UserDtos {
 
     // Public view of a user: never includes the password hash.
     // العرض العام للمستخدم: لا يحتوي أبدًا على ناتج تشفير كلمة المرور.
-    public record UserResponse(Long id, String username, String fullName, Role role, boolean active, Instant createdAt) {
+    public record UserResponse(Long id, String username, String fullName, Role role, String phone, String email,
+                               boolean active, Instant createdAt) {
 
         public static UserResponse from(AppUser user) {
             return new UserResponse(user.getId(), user.getUsername(), user.getFullName(),
-                    user.getRole(), user.isActive(), user.getCreatedAt());
+                    user.getRole(), user.getPhone(), user.getEmail(), user.isActive(), user.getCreatedAt());
         }
     }
 

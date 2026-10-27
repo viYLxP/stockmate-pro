@@ -3,6 +3,7 @@ package com.stockmate.product;
 import java.math.BigDecimal;
 import java.time.Instant;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -33,7 +34,8 @@ public final class ProductDtos {
             @NotNull @DecimalMin("0.00") @DecimalMax("9999999999.99") @Digits(integer = 10, fraction = 2) BigDecimal costPrice,
             @NotNull @DecimalMin("0.00") @DecimalMax("9999999999.99") @Digits(integer = 10, fraction = 2) BigDecimal salePrice,
             @Min(0) @Max(1_000_000) int reorderLevel,
-            @Min(0) @Max(1_000_000) int openingQuantity) {
+            @Min(0) @Max(1_000_000) int openingQuantity,
+            @Valid ShopListing shop) {
     }
 
     /**
@@ -53,13 +55,29 @@ public final class ProductDtos {
             @NotNull @DecimalMin("0.00") @DecimalMax("9999999999.99") @Digits(integer = 10, fraction = 2) BigDecimal salePrice,
             @Min(0) @Max(1_000_000) int reorderLevel,
             boolean active,
-            @NotNull Long version) {
+            @NotNull Long version,
+            @Valid ShopListing shop) {
+    }
+
+    /**
+     * How the product appears in the online shop. Null (or published = false) keeps it office-only.
+     * كيف يظهر المنتج في المتجر الإلكتروني. لو null (أو published = false) يبقى للمكتب بس.
+     */
+    public record ShopListing(boolean published,
+                              @Size(max = 150) String nameAr,
+                              @Size(max = 1000) String description,
+                              @Size(max = 1000) String descriptionAr) {
+
+        static ShopListing of(Product p) {
+            return new ShopListing(p.isPublished(), p.getNameAr(), p.getDescription(), p.getDescriptionAr());
+        }
     }
 
     public record ProductResponse(Long id, String sku, String name, Long categoryId, String categoryName,
                                   Long supplierId, String supplierName, String unit, BigDecimal costPrice,
                                   BigDecimal salePrice, int quantity, int reorderLevel, StockStatus stockStatus,
-                                  BigDecimal stockValue, boolean active, long version, Instant updatedAt) {
+                                  BigDecimal stockValue, boolean active, long version, Instant updatedAt,
+                                  ShopListing shop) {
 
         public static ProductResponse from(Product p) {
             return new ProductResponse(p.getId(), p.getSku(), p.getName(),
@@ -71,7 +89,7 @@ public final class ProductDtos {
                     // Value of this product's stock at cost.
                     // قيمة مخزون هذا المنتج بسعر التكلفة.
                     com.stockmate.common.Money.times(p.getCostPrice(), p.getQuantity()),
-                    p.isActive(), p.getVersion(), p.getUpdatedAt());
+                    p.isActive(), p.getVersion(), p.getUpdatedAt(), ShopListing.of(p));
         }
     }
 }

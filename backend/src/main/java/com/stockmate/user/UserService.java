@@ -1,6 +1,7 @@
 package com.stockmate.user;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -39,8 +40,21 @@ public class UserService {
         return UserResponse.from(findByUsername(CurrentUser.username()));
     }
 
+    /**
+     * The signed-in account itself, for the customer's own pages.
+     * الحساب المسجّل دخول نفسه، لصفحات العميل.
+     */
+    public AppUser currentAccount() {
+        return findByUsername(CurrentUser.username());
+    }
+
     @Transactional
     public UserResponse create(CreateUserRequest request) {
+        // Customers sign up themselves on the shop; the admin creates staff only.
+        // العملاء يسجلون بنفسهم في المتجر؛ والمدير ينشئ موظفين بس.
+        if (request.role() == Role.CUSTOMER) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED, Map.of("fields", Map.of("role", "Staff")));
+        }
         // Check first to return a clear error code instead of a raw database constraint error.
         // نتحقق أولًا حتى نرجّع رمز خطأ واضح بدل خطأ قيد قاعدة البيانات.
         if (users.existsByUsernameIgnoreCase(request.username())) {
@@ -59,6 +73,17 @@ public class UserService {
         boolean isSelf = user.getUsername().equalsIgnoreCase(CurrentUser.username());
         if (isSelf && (!request.active() || request.role() != user.getRole())) {
             throw new ApiException(ErrorCode.CANNOT_MODIFY_SELF);
+        }
+        // A customer stays a customer and staff stay staff: the two kinds of account are never swapped.
+        // العميل يبقى عميل والموظف يبقى موظف: نوعين الحسابات ما يتبادلون أبدًا.
+        if ((user.getRole() == Role.CUSTOMER) != (request.role() == Role.CUSTOMER)) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED, Map.of("fields", Map.of("role", "Staff")));
+        }
+        if (user.getRole() == Role.CUSTOMER) {
+            // For customers the admin only switches the account on or off; their profile is theirs.
+            // للعملاء المدير بس يشغّل أو يوقف الحساب؛ وملفهم الشخصي حقهم.
+            user.setActive(request.active());
+            return UserResponse.from(user);
         }
         user.setFullName(request.fullName().trim());
         user.setRole(request.role());

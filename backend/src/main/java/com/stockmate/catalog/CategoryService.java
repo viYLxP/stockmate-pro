@@ -33,7 +33,9 @@ public class CategoryService {
     public CategoryResponse create(CategoryRequest request) {
         String name = request.name().trim();
         ensureNameIsFree(name, null);
-        Category saved = categories.save(new Category(name, blankToNull(request.description())));
+        Category category = new Category(name, blankToNull(request.description()));
+        category.setNameAr(blankToNull(request.nameAr()));
+        Category saved = categories.save(category);
         return CategoryResponse.from(saved, 0);
     }
 
@@ -43,6 +45,7 @@ public class CategoryService {
         String name = request.name().trim();
         ensureNameIsFree(name, id);
         category.setName(name);
+        category.setNameAr(blankToNull(request.nameAr()));
         category.setDescription(blankToNull(request.description()));
         return CategoryResponse.from(category, products.countByCategoryId(id));
     }
