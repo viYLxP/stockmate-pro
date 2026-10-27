@@ -70,6 +70,17 @@
       <dd>
         <bdi>{{ p.supplierName ?? ('products.noSupplier' | t) }}</bdi>
       </dd>
+      <dt>{{ 'products.shopTitle' | t }}</dt>
+      <dd data-testid="shop-state">
+        @if (p.shop.published) {
+          <span class="badge badge--info">{{ 'products.inShop' | t }}</span>
+          @if (p.shop.nameAr) {
+            <bdi lang="ar">{{ p.shop.nameAr }}</bdi>
+          }
+        } @else {
+          <span class="muted">{{ 'products.officeOnly' | t }}</span>
+        }
+      </dd>
       <dt>{{ 'products.lastUpdated' | t }}</dt>
       <dd>{{ fmt.dateTime(p.updatedAt) }}</dd>
     </dl>

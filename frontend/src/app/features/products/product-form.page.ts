@@ -61,6 +61,11 @@ export class ProductFormPage {
     reorderLevel: [0, [Validators.required, Validators.min(0), Validators.max(1_000_000)]],
     openingQuantity: [0, [Validators.min(0), Validators.max(1_000_000)]],
     active: [true],
+    // How it appears in the online shop. / كيف يظهر في المتجر الإلكتروني.
+    published: [false],
+    nameAr: ['', Validators.maxLength(150)],
+    description: ['', Validators.maxLength(1000)],
+    descriptionAr: ['', Validators.maxLength(1000)],
   });
 
   protected readonly categories = rxResource({
@@ -110,6 +115,10 @@ export class ProductFormPage {
           reorderLevel: p.reorderLevel,
           openingQuantity: 0,
           active: p.active,
+          published: p.shop.published,
+          nameAr: p.shop.nameAr ?? '',
+          description: p.shop.description ?? '',
+          descriptionAr: p.shop.descriptionAr ?? '',
         });
       }
     });
@@ -138,6 +147,12 @@ export class ProductFormPage {
       costPrice: Number(v.costPrice),
       salePrice: Number(v.salePrice),
       reorderLevel: Number(v.reorderLevel),
+      shop: {
+        published: v.published,
+        nameAr: v.nameAr.trim() || null,
+        description: v.description.trim() || null,
+        descriptionAr: v.descriptionAr.trim() || null,
+      },
       ...(this.isEdit()
         ? { active: v.active, version: this.product.value()?.version }
         : { openingQuantity: Number(v.openingQuantity) }),

@@ -39,6 +39,9 @@
               <a class="row-link" routerLink="/products" [queryParams]="{ categoryId: c.id }">{{
                 c.name
               }}</a>
+              @if (c.nameAr) {
+                <span class="list__sub" lang="ar" dir="rtl">{{ c.nameAr }}</span>
+              }
             </td>
             <td class="wrap muted">{{ c.description ?? '—' }}</td>
             <td class="cell-end num">{{ c.productCount }}</td>
@@ -92,6 +95,22 @@
           [control]="form.controls.name"
           [server]="serverFields()['name']"
           id="cat-name-err"
+        />
+      </div>
+      <div class="field form-grid--full">
+        <label for="cat-name-ar">{{ 'categories.nameAr' | t }}</label>
+        <input
+          id="cat-name-ar"
+          formControlName="nameAr"
+          dir="rtl"
+          lang="ar"
+          maxlength="100"
+          aria-describedby="cat-name-ar-err"
+        />
+        <app-field-error
+          [control]="form.controls.nameAr"
+          [server]="serverFields()['nameAr']"
+          id="cat-name-ar-err"
         />
       </div>
       <div class="field form-grid--full">

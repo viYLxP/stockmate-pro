@@ -26,8 +26,8 @@
 
     <div class="field">
       <label for="username">{{ 'login.username' | t }}</label>
-      <!-- dir="ltr": usernames are Latin, so they read correctly even on the Arabic page. -->
-      <!-- dir="ltr": أسماء المستخدمين لاتينية، فتنقرأ صح حتى في الصفحة العربية. -->
+      <!-- dir="ltr": usernames and mobile numbers are Latin digits, so they read correctly on the Arabic page. -->
+      <!-- dir="ltr": أسماء المستخدمين وأرقام الجوال لاتينية، فتنقرأ صح حتى في الصفحة العربية. -->
       <input
         id="username"
         formControlName="username"
@@ -67,5 +67,19 @@
       {{ (submitting() ? 'login.submitting' : 'login.submit') | t }}
     </button>
     <p class="hint" dir="auto">{{ 'login.demoHint' | t }}</p>
+    <p class="auth-card__links">
+      <span>
+        {{ 'login.noAccount' | t }}
+        <a
+          routerLink="/register"
+          [queryParams]="{ returnUrl: returnUrl() }"
+          data-testid="login-register"
+          >{{ 'login.registerLink' | t }}</a
+        >
+      </span>
+      <a routerLink="/shop">
+        <app-icon name="chevron" class="icon--back" [flip]="true" /> {{ 'login.backToShop' | t }}
+      </a>
+    </p>
   </form>
 </div>

@@ -108,6 +108,8 @@
                 }}</span>
                 @if (!p.active) {
                   <span class="badge">{{ 'common.inactive' | t }}</span>
+                } @else if (p.shop.published) {
+                  <span class="badge badge--info">{{ 'products.inShop' | t }}</span>
                 }
               </td>
               <td class="cell-end num">{{ fmt.amount(p.costPrice) }}</td>

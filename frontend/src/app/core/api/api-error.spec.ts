@@ -60,4 +60,14 @@ describe('api-error', () => {
     );
     expect(errorMessage(i18n, err)).toBe(i18n.t('errors.UNKNOWN'));
   });
+
+  it('turns the rate limiter seconds into whole minutes', () => {
+    const err = toApiError(
+      new HttpErrorResponse({
+        status: 429,
+        error: { code: 'RATE_LIMITED', retryAfterSeconds: 61 },
+      }),
+    );
+    expect(errorMessage(i18n, err)).toContain('wait 2 minutes');
+  });
 });

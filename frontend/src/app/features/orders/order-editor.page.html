@@ -20,6 +20,19 @@
           <span [class]="'badge badge--' + current.status" data-testid="order-status">{{
             'orderStatus.' + current.status | t
           }}</span>
+          @if (online()) {
+            <span class="badge badge--info" data-testid="order-channel">{{
+              'channel.ONLINE' | t
+            }}</span>
+            @if (current.fulfilment && current.status !== 'CANCELLED') {
+              <span class="badge badge--accent" data-testid="order-fulfilment">{{
+                'fulfilment.' + current.fulfilment | t
+              }}</span>
+            }
+            @if (current.paymentStatus) {
+              <app-payment-badge [status]="current.paymentStatus" />
+            }
+          }
         }
       </h1>
       @if (current) {
@@ -50,7 +63,46 @@
         }
         <!-- Drafts can always be cancelled; confirmed sales can be cancelled (stock returns); received purchases cannot. -->
         <!-- المسودات تُلغى دائمًا؛ والمبيعات المؤكدة تُلغى (والمخزون يرجع)؛ والمشتريات المستلمة لا تُلغى. -->
-        @if (current.status === 'DRAFT' || current.status === 'CONFIRMED') {
+        @if (online() && current.status === 'CONFIRMED') {
+          @if (canShip()) {
+            <button
+              type="button"
+              class="btn btn--primary"
+              (click)="ship(current)"
+              [disabled]="busy()"
+              data-testid="ship-order"
+            >
+              <app-icon name="truck" /> {{ 'orders.ship' | t }}
+            </button>
+          }
+          @if (current.fulfilment === 'SHIPPED') {
+            <button
+              type="button"
+              class="btn btn--primary"
+              (click)="deliver(current)"
+              [disabled]="busy()"
+              data-testid="deliver-order"
+            >
+              <app-icon name="check" /> {{ 'orders.deliver' | t }}
+            </button>
+          }
+          <!-- Money that arrived another way (bank transfer, cash at the counter). / فلوس وصلت بطريقة ثانية (تحويل، كاش بالفرع). -->
+          @if (current.paymentStatus === 'UNPAID' && current.fulfilment === 'NEW') {
+            <button
+              type="button"
+              class="btn"
+              (click)="recordCash(current)"
+              [disabled]="busy()"
+              data-testid="record-cash"
+            >
+              <app-icon name="cash" /> {{ 'orders.recordCash' | t }}
+            </button>
+          }
+        }
+        @if (
+          current.status === 'DRAFT' ||
+          (current.status === 'CONFIRMED' && current.fulfilment !== 'DELIVERED')
+        ) {
           <button
             type="button"
             class="btn btn--danger"
@@ -70,7 +122,104 @@
   }
   @if (current && !editable()) {
     <div class="alert alert--info" role="status">
-      {{ 'orders.readOnly' | t: { status: ('orderStatus.' + current.status | t) } }}
+      @if (online()) {
+        {{ 'orders.onlineReadOnly' | t }}
+      } @else {
+        {{ 'orders.readOnly' | t: { status: ('orderStatus.' + current.status | t) } }}
+      }
+    </div>
+  }
+  @if (current && online()) {
+    <div class="grid grid--2 section-gap" style="margin-bottom: 1rem">
+      <section class="card" aria-labelledby="delivery-title" data-testid="delivery-card">
+        <h2 id="delivery-title">{{ 'orders.delivery' | t }}</h2>
+        @if (current.shipTo; as to) {
+          <p>
+            <strong dir="auto">{{ to.name }}</strong> ·
+            <span dir="ltr">{{ phone(to.phone) }}</span>
+            @if (to.email) {
+              · <span dir="ltr">{{ to.email }}</span>
+            }
+          </p>
+          <p class="muted" dir="auto">
+            {{ 'city.' + to.city | t }} · {{ to.district }} · {{ to.address }}
+          </p>
+        }
+        @if (current.status === 'CANCELLED') {
+          <p class="alert alert--danger" data-testid="cancel-reason">
+            {{ fmt.dateTime(current.cancelledAt) }}
+            @if (current.cancelReason) {
+              · {{ 'orders.cancelledBecause' | t: { reason: reasonText(current.cancelReason) } }}
+            }
+          </p>
+        } @else {
+          <dl class="detail-list">
+            @if (current.shippedAt) {
+              <div>
+                <dt>{{ 'fulfilment.SHIPPED' | t }}</dt>
+                <dd>{{ fmt.dateTime(current.shippedAt) }}</dd>
+              </div>
+            }
+            @if (current.deliveredAt) {
+              <div>
+                <dt>{{ 'fulfilment.DELIVERED' | t }}</dt>
+                <dd>{{ fmt.dateTime(current.deliveredAt) }}</dd>
+              </div>
+            }
+          </dl>
+          @if (current.paymentStatus === 'UNPAID' && current.payBy) {
+            <p class="alert alert--warning" data-testid="awaiting-payment">
+              {{ 'orders.payBy' | t: { date: fmt.dateTime(current.payBy) } }}
+            </p>
+          } @else if (current.paymentStatus === 'UNPAID' && current.paymentChoice !== 'CASH') {
+            <p class="alert alert--warning">{{ 'orders.awaitingPayment' | t }}</p>
+          }
+        }
+      </section>
+
+      <section class="card" aria-labelledby="payment-title" data-testid="payment-card">
+        <div class="card__header">
+          <h2 id="payment-title">{{ 'orders.payment' | t }}</h2>
+          @if (current.paymentChoice) {
+            <span class="muted">{{ 'payment.method.' + current.paymentChoice | t }}</span>
+          }
+        </div>
+        <h3 class="list__sub">{{ 'orders.paymentAttempts' | t }}</h3>
+        @if (current.payments?.length) {
+          <ul class="list">
+            @for (p of current.payments; track p.id) {
+              <li [attr.data-testid]="'attempt-' + p.status">
+                <div class="list__main">
+                  <span
+                    >{{ 'payment.method.' + p.method | t }} ·
+                    {{ 'payment.provider.' + p.provider | t }}
+                    @if (p.cardLast4) {
+                      · <span dir="ltr">{{ p.cardBrand }} ••{{ p.cardLast4 }}</span>
+                    }
+                  </span>
+                  <span class="list__sub"
+                    >{{ fmt.dateTime(p.paidAt ?? p.createdAt) }} ·
+                    {{ 'payment.by' | t: { name: p.recordedBy } }}
+                    @if (p.failureReason) {
+                      · {{ failure(p.failureReason) }}
+                    }
+                  </span>
+                </div>
+                <span class="num">{{ fmt.money(p.amount) }}</span>
+                <span
+                  class="badge"
+                  [class.badge--success]="p.status === 'PAID'"
+                  [class.badge--danger]="p.status === 'FAILED'"
+                  [class.badge--info]="p.status === 'REFUNDED'"
+                  >{{ 'payment.attempt.' + p.status | t }}</span
+                >
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="muted">{{ 'payment.none' | t }}</p>
+        }
+      </section>
     </div>
   }
 

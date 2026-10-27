@@ -5,6 +5,12 @@ import { Page, expect } from '@playwright/test';
 export const ADMIN = { username: 'admin', password: process.env['ADMIN_PASSWORD'] ?? 'Admin@12345' };
 export const STAFF = { username: 'staff', password: process.env['STAFF_PASSWORD'] ?? 'Staff@12345' };
 
+// Seeded shop customer (see DemoDataSeeder). / عميل المتجر التجريبي (شوف DemoDataSeeder).
+export const CUSTOMER = {
+  username: '0553001010',
+  password: process.env['CUSTOMER_PASSWORD'] ?? 'Customer@12345',
+};
+
 export async function login(page: Page, user = ADMIN): Promise<void> {
   await page.goto('/login');
   await page.locator('#username').fill(user.username);
@@ -31,3 +37,8 @@ export async function expectNoHorizontalScroll(page: Page): Promise<void> {
 // Unique suffix so repeated runs never collide on SKU or names.
 // لاحقة فريدة حتى التشغيل المتكرر ما يتعارض في رمز المنتج أو الأسماء.
 export const unique = () => Date.now().toString(36).toUpperCase();
+
+/** A fresh Saudi mobile number per run, so guest orders and sign-ups never collide. / رقم جوال جديد لكل تشغيل. */
+export function uniquePhone(): string {
+  return `05${String(Date.now() % 100_000_000).padStart(8, '0')}`;
+}

@@ -15,12 +15,17 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const auth = inject(AuthService);
   const i18n = inject(I18nService);
   const token = auth.token();
-  const isLogin = request.url.endsWith('/auth/login');
+  const isLogin = request.url.endsWith('/auth/login') || request.url.endsWith('/auth/register');
+  // The payment page never needs a token. The shop gets one only from a customer (it files the order under the
+  // account); a staff member browsing the shop is a visitor there, so an old staff token cannot break it.
+  // صفحة الدفع ما تحتاج رمز أبدًا. والمتجر ياخذ رمز بس من العميل (عشان ينحفظ الطلب تحت حسابه)؛ والموظف اللي
+  // يتصفح المتجر زائر هناك، فرمز الموظف القديم ما يخرّبه.
+  const isPublic = request.url.startsWith('/api/public/');
+  const isShop = request.url.startsWith('/api/shop/');
+  const sendToken = !!token && !isLogin && !isPublic && (!isShop || auth.isCustomer());
 
   const headers: Record<string, string> = { 'Accept-Language': i18n.lang() };
-  // Never send a token to the login endpoint itself.
-  // ما نرسل رمز لرابط تسجيل الدخول نفسه.
-  if (token && !isLogin) {
+  if (sendToken) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
@@ -28,7 +33,7 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
     catchError((error: unknown) => {
       // A 401 on login just means wrong credentials, which the login form shows itself.
       // 401 في تسجيل الدخول يعني بيانات خاطئة فقط، ونموذج الدخول يعرضها بنفسه.
-      if (error instanceof HttpErrorResponse && error.status === 401 && !isLogin) {
+      if (error instanceof HttpErrorResponse && error.status === 401 && sendToken) {
         auth.sessionExpired();
       }
       return throwError(() => error);

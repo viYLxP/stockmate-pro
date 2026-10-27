@@ -56,6 +56,9 @@ jobs:
         run: |
           echo "JWT_SECRET=$(openssl rand -base64 48 | tr -d '\n')" > .env
           echo "DB_PASSWORD=ci-$(openssl rand -hex 8)" >> .env
+          # The browser tests place many shop orders from one address. / اختبارات المتصفح تطلب كثير من عنوان واحد.
+          echo "RATE_LIMIT_ORDERS=1000" >> .env
+          echo "RATE_LIMIT_LOOKUPS=1000" >> .env
       # Builds the real Dockerfiles, so a broken image fails CI. / يبني ملفات Dockerfile الحقيقية، فأي صورة معطوبة تفشّل CI.
       - run: docker compose up -d --build --wait
       - uses: actions/setup-node@v4

@@ -29,6 +29,11 @@ spring:
 
 server:
   port: ${PORT:8080}
+  # Trust X-Forwarded-For only from internal proxies (nginx in the same Docker network), so the rate limiter
+  # sees the real visitor IP and a visitor cannot fake it by sending the header directly.
+  # نثق بـ X-Forwarded-For فقط من البروكسي الداخلي (nginx في نفس شبكة Docker)، فيشوف محدّد الطلبات عنوان الزائر الحقيقي
+  # وما يقدر الزائر يزوّره بإرسال الترويسة بنفسه.
+  forward-headers-strategy: native
   error:
     include-message: never
 

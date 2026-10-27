@@ -56,13 +56,19 @@ export class CategoriesPage {
 
   protected readonly form = inject(NonNullableFormBuilder).group({
     name: ['', [Validators.required, Validators.maxLength(100)]],
+    // Shown in the Arabic shop. / يظهر في المتجر العربي.
+    nameAr: ['', Validators.maxLength(100)],
     description: ['', Validators.maxLength(255)],
   });
 
   protected open(category: Category | null): void {
     this.editing.set(category);
     this.apiError.set(null);
-    this.form.reset({ name: category?.name ?? '', description: category?.description ?? '' });
+    this.form.reset({
+      name: category?.name ?? '',
+      nameAr: category?.nameAr ?? '',
+      description: category?.description ?? '',
+    });
     this.dialog().nativeElement.showModal();
   }
 
@@ -76,7 +82,8 @@ export class CategoriesPage {
       return;
     }
     const editing = this.editing();
-    const body = this.form.getRawValue();
+    const v = this.form.getRawValue();
+    const body = { ...v, nameAr: v.nameAr.trim() || null };
     this.saving.set(true);
     const request = editing
       ? this.api.put<Category>(`/categories/${editing.id}`, body)

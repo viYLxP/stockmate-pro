@@ -42,6 +42,10 @@ export class FormatService {
       }),
   );
 
+  private readonly plainDateFmt = computed(
+    () => new Intl.DateTimeFormat(this.i18n.locale(), { dateStyle: 'medium', timeZone: 'UTC' }),
+  );
+
   /** "1,234.50 SAR" / "1,234.50 ر.س" */
   money(value: number | null | undefined): string {
     return `${this.moneyFmt().format(value ?? 0)} ${this.i18n.t('app.currency')}`;
@@ -71,6 +75,11 @@ export class FormatService {
    */
   day(isoDate: string): string {
     return this.dayFmt().format(new Date(`${isoDate}T00:00:00Z`));
+  }
+
+  /** A calendar date from the server ("2026-11-27"), shown without a time-zone shift. / تاريخ تقويم بدون إزاحة توقيت. */
+  plainDate(isoDate: string | null | undefined): string {
+    return isoDate ? this.plainDateFmt().format(new Date(`${isoDate}T00:00:00Z`)) : '—';
   }
 
   /**

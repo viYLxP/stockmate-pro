@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 import { ApiError, errorMessage, toApiError } from '../../core/api/api-error';
 import { AuthService } from '../../core/auth/auth.service';
@@ -15,7 +15,7 @@ import { IconComponent } from '../../core/ui/icon.component';
  */
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule, TranslatePipe, FieldErrorComponent, IconComponent],
+  imports: [ReactiveFormsModule, RouterLink, TranslatePipe, FieldErrorComponent, IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './login.page.html',
 })
@@ -27,6 +27,9 @@ export class LoginPage {
   // "?expired=1" is added by the interceptor when the session ended, so we can explain why the user is here.
   // "?expired=1" يضيفه الـ interceptor لما تنتهي الجلسة، حتى نوضح للمستخدم ليش رجع هنا.
   readonly expired = input<string | undefined>();
+  // Where a customer was going before being asked to sign in (e.g. /checkout).
+  // وين كان رايح العميل قبل ما ينطلب منه الدخول (مثل ‎/checkout).
+  readonly returnUrl = input<string | undefined>();
 
   protected readonly form = inject(NonNullableFormBuilder).group({
     username: ['', [Validators.required, Validators.maxLength(50)]],
@@ -42,6 +45,14 @@ export class LoginPage {
   });
   protected readonly showPassword = signal(false);
 
+  // A customer returns to the page they came from (only paths inside this site); staff always to the dashboard.
+  // العميل يرجع للصفحة اللي جا منها (بس مسارات داخل الموقع)؛ والموظف دايم للوحة.
+  private target(): string {
+    const url = this.returnUrl();
+    const safe = !!url && url.startsWith('/') && !url.startsWith('//');
+    return this.auth.isCustomer() && safe ? url : this.auth.home();
+  }
+
   protected submit(): void {
     // Show all field errors at once if the user submits an incomplete form.
     // نعرض كل أخطاء الحقول مرة وحدة لو أرسل المستخدم نموذج ناقص.
@@ -53,7 +64,7 @@ export class LoginPage {
     this.apiError.set(null);
     const { username, password } = this.form.getRawValue();
     this.auth.login(username.trim(), password).subscribe({
-      next: () => void this.router.navigateByUrl('/dashboard'),
+      next: () => void this.router.navigateByUrl(this.target()),
       error: (err: unknown) => {
         this.submitting.set(false);
         // Translate the server error code (e.g. BAD_CREDENTIALS) into the current language.

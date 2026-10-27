@@ -1,0 +1,268 @@
+<div class="shop-page">
+  @if (placed(); as result) {
+    <section class="success-card page-narrow" data-testid="order-placed" tabindex="-1">
+      <span class="success-card__icon" aria-hidden="true"><app-icon name="check" /></span>
+      <h1>{{ 'order.placedTitle' | t: { number: result.number } }}</h1>
+      <p class="reference" dir="ltr" data-testid="placed-number">{{ result.number }}</p>
+      <p>{{ 'order.placedCash' | t: { amount: fmt.money(result.total) } }}</p>
+      <div class="success-card__actions">
+        @if (auth.isCustomer()) {
+          <a class="btn btn--primary" [routerLink]="['/account/orders', result.number]">{{
+            'account.open' | t
+          }}</a>
+        } @else {
+          <a
+            class="btn btn--primary"
+            routerLink="/track"
+            [queryParams]="{ number: result.number }"
+            >{{ 'shop.track' | t }}</a
+          >
+        }
+        <a class="btn" routerLink="/shop">{{ 'cart.continue' | t }}</a>
+      </div>
+    </section>
+  } @else if (cart.isEmpty()) {
+    <header class="page-header section-gap">
+      <h1>{{ 'order.checkoutTitle' | t }}</h1>
+    </header>
+    <div class="empty-state card" data-testid="cart-empty">
+      <p>{{ 'cart.empty' | t }}</p>
+      <a class="btn btn--primary" routerLink="/shop">{{ 'cart.browse' | t }}</a>
+    </div>
+  } @else {
+    <header class="page-header section-gap">
+      <h1>{{ 'order.checkoutTitle' | t }}</h1>
+    </header>
+    <form class="cart-layout" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="checkout-form">
+        @if (errorText(); as message) {
+          <div class="alert alert--danger" role="alert" data-testid="checkout-error">
+            {{ message }}
+            @if (cartProblem()) {
+              <a routerLink="/cart">{{ 'shop.viewCart' | t }}</a>
+            }
+          </div>
+        }
+
+        <fieldset class="form-section">
+          <legend>{{ 'order.contact' | t }}</legend>
+          @if (auth.isCustomer()) {
+            <p class="muted" data-testid="checkout-signed-in">
+              {{
+                'order.signedInAs'
+                  | t: { name: auth.user()?.fullName ?? '', phone: phone(auth.user()?.phone) }
+              }}
+            </p>
+          } @else {
+            <p class="hint">
+              {{ 'order.haveAccount' | t }}
+              <a routerLink="/login" [queryParams]="{ returnUrl: '/checkout' }">{{
+                'shop.signIn' | t
+              }}</a>
+            </p>
+            <div class="form-grid">
+              <div class="field">
+                <label for="co-name">{{ 'order.fullName' | t }}</label>
+                <input
+                  id="co-name"
+                  formControlName="fullName"
+                  autocomplete="name"
+                  dir="auto"
+                  maxlength="120"
+                  aria-describedby="co-name-err"
+                  data-testid="co-name"
+                />
+                <app-field-error
+                  [control]="form.controls.fullName"
+                  [server]="serverFields()['fullName']"
+                  id="co-name-err"
+                />
+              </div>
+              <div class="field">
+                <label for="co-phone">{{ 'order.phone' | t }}</label>
+                <input
+                  id="co-phone"
+                  type="tel"
+                  inputmode="tel"
+                  formControlName="phone"
+                  autocomplete="tel"
+                  dir="ltr"
+                  maxlength="20"
+                  placeholder="05XXXXXXXX"
+                  aria-describedby="co-phone-hint co-phone-err"
+                  data-testid="co-phone"
+                />
+                <small class="hint" id="co-phone-hint">{{ 'order.phoneHint' | t }}</small>
+                <app-field-error
+                  [control]="form.controls.phone"
+                  [server]="serverFields()['phone']"
+                  patternKey="validation.Phone"
+                  id="co-phone-err"
+                />
+              </div>
+            </div>
+          }
+          <div class="field">
+            <label for="co-email"
+              >{{ 'order.email' | t }} <small>({{ 'common.optional' | t }})</small></label
+            >
+            <input
+              id="co-email"
+              type="email"
+              formControlName="email"
+              autocomplete="email"
+              dir="ltr"
+              maxlength="150"
+              aria-describedby="co-email-err"
+            />
+            <app-field-error
+              [control]="form.controls.email"
+              [server]="serverFields()['email']"
+              id="co-email-err"
+            />
+          </div>
+        </fieldset>
+
+        <fieldset class="form-section">
+          <legend>{{ 'order.deliveryTitle' | t }}</legend>
+          <div class="form-grid">
+            <div class="field">
+              <label for="co-city">{{ 'order.city' | t }}</label>
+              <select id="co-city" formControlName="city" data-testid="co-city">
+                @for (c of cities; track c) {
+                  <option [value]="c">{{ 'city.' + c | t }}</option>
+                }
+              </select>
+            </div>
+            <div class="field">
+              <label for="co-district">{{ 'order.district' | t }}</label>
+              <input
+                id="co-district"
+                formControlName="district"
+                dir="auto"
+                maxlength="100"
+                aria-describedby="co-district-err"
+                data-testid="co-district"
+              />
+              <app-field-error
+                [control]="form.controls.district"
+                [server]="serverFields()['district']"
+                id="co-district-err"
+              />
+            </div>
+          </div>
+          <div class="field">
+            <label for="co-address">{{ 'order.address' | t }}</label>
+            <textarea
+              id="co-address"
+              formControlName="address"
+              rows="2"
+              dir="auto"
+              maxlength="300"
+              autocomplete="street-address"
+              aria-describedby="co-address-err"
+              data-testid="co-address"
+            ></textarea>
+            <app-field-error
+              [control]="form.controls.address"
+              [server]="serverFields()['address']"
+              id="co-address-err"
+            />
+          </div>
+        </fieldset>
+
+        <fieldset class="form-section">
+          <legend>{{ 'order.paymentTitle' | t }}</legend>
+          <div class="choice-grid" role="radiogroup" [attr.aria-label]="'order.paymentTitle' | t">
+            @for (m of methods; track m) {
+              <label
+                class="choice"
+                [class.choice--on]="method() === m"
+                [class.choice--off]="disabled(m)"
+              >
+                <input
+                  type="radio"
+                  name="co-method"
+                  [value]="m"
+                  [checked]="method() === m"
+                  [disabled]="disabled(m)"
+                  (change)="choose(m)"
+                  [attr.data-testid]="'co-method-' + m"
+                />
+                <span class="choice__title"
+                  ><app-icon [name]="icon(m)" /> {{ 'payment.method.' + m | t }}</span
+                >
+                <small class="muted">{{
+                  disabled(m)
+                    ? ('order.instalmentsRange' | t: instalmentsRange)
+                    : m === 'CASH'
+                      ? ('order.codHint' | t)
+                      : ('payment.methodHint.' + m | t)
+                }}</small>
+              </label>
+            }
+          </div>
+          @if (method() !== 'CASH') {
+            <p class="hint">{{ 'order.holdNote' | t }}</p>
+          }
+        </fieldset>
+
+        <div class="honeypot" aria-hidden="true">
+          <label for="co-website">Website</label>
+          <input id="co-website" formControlName="website" tabindex="-1" autocomplete="off" />
+        </div>
+      </div>
+
+      <aside class="card cart-summary" [attr.aria-label]="'order.summary' | t">
+        <h2>{{ 'order.summary' | t }}</h2>
+        @if (quote.value(); as q) {
+          <ul class="summary-lines">
+            @for (l of q.lines; track l.productId) {
+              <li>
+                <span>{{ name(l.name, l.nameAr) }} {{ 'order.qty' | t: { qty: l.quantity } }}</span>
+                <span class="num">{{
+                  l.lineTotal !== null ? fmt.money(vat(l.lineTotal)) : '—'
+                }}</span>
+              </li>
+            }
+          </ul>
+          <dl class="totals">
+            <dt>{{ 'cart.subtotal' | t }}</dt>
+            <dd class="num">{{ fmt.money(q.subtotal) }}</dd>
+            <dt>{{ 'cart.vat' | t }}</dt>
+            <dd class="num">{{ fmt.money(q.vat) }}</dd>
+            <dt class="grand">{{ 'cart.total' | t }}</dt>
+            <dd class="grand num" data-testid="checkout-total">{{ fmt.money(q.total) }}</dd>
+          </dl>
+          @if (!q.canCheckout) {
+            <p class="alert alert--danger section-gap" role="alert">
+              {{ 'errors.PRODUCT_UNAVAILABLE' | t }}
+              <a routerLink="/cart">{{ 'shop.viewCart' | t }}</a>
+            </p>
+          }
+          <button
+            type="submit"
+            class="btn btn--primary btn--block section-gap"
+            [disabled]="submitting() || !q.canCheckout"
+            data-testid="place-order"
+          >
+            <app-icon name="lock" />
+            {{
+              (submitting() ? 'order.placing' : 'order.place') | t: { amount: fmt.money(q.total) }
+            }}
+          </button>
+        } @else if (quote.error()) {
+          <div class="alert alert--danger" role="alert">
+            {{ 'errors.NETWORK' | t }}
+            <button type="button" class="btn btn--small" (click)="quote.reload()">
+              {{ 'app.retry' | t }}
+            </button>
+          </div>
+        } @else {
+          <p class="muted" role="status">{{ 'cart.checking' | t }}</p>
+        }
+        <p class="hint">{{ 'order.demoNote' | t }}</p>
+      </aside>
+    </form>
+  }
+</div>

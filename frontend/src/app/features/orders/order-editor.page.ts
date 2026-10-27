@@ -20,10 +20,13 @@ import { FormatService } from '../../core/i18n/format.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { computeTotals, lineTotal } from '../../core/money';
+import { localPhone } from '../../core/shop';
 import { ConfirmService } from '../../core/ui/confirm.service';
 import { FieldErrorComponent } from '../../core/ui/field-error.component';
 import { IconComponent } from '../../core/ui/icon.component';
+import { PromptService } from '../../core/ui/prompt.service';
 import { ToastService } from '../../core/ui/toast.service';
+import { PaymentBadgeComponent } from '../../shared/payment-badge.component';
 import { ORDER_KINDS, OrderKind } from './order-kind';
 
 /**
@@ -32,7 +35,14 @@ import { ORDER_KINDS, OrderKind } from './order-kind';
  */
 @Component({
   selector: 'app-order-editor',
-  imports: [ReactiveFormsModule, RouterLink, TranslatePipe, IconComponent, FieldErrorComponent],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    TranslatePipe,
+    IconComponent,
+    FieldErrorComponent,
+    PaymentBadgeComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './order-editor.page.html',
 })
@@ -42,6 +52,7 @@ export class OrderEditorPage {
   private readonly i18n = inject(I18nService);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
+  private readonly prompt = inject(PromptService);
   private readonly fb = inject(NonNullableFormBuilder);
   protected readonly fmt = inject(FormatService);
 
@@ -69,6 +80,21 @@ export class OrderEditorPage {
   protected readonly editable = computed(
     () => !this.id() || this.order.value()?.status === 'DRAFT',
   );
+
+  // Shop orders: priced by the shop, then shipped, delivered and paid online or in cash.
+  // طلبات المتجر: يسعّرها المتجر، ثم تنشحن وتتوصل وتندفع أونلاين أو كاش.
+  protected readonly online = computed(() => this.order.value()?.channel === 'ONLINE');
+  // Shipping needs the money first, unless the customer pays the driver.
+  // الشحن يحتاج الفلوس أول، إلا لو العميل بيدفع للمندوب.
+  protected readonly canShip = computed(() => {
+    const o = this.order.value();
+    return (
+      !!o &&
+      o.status === 'CONFIRMED' &&
+      o.fulfilment === 'NEW' &&
+      (o.paymentStatus === 'PAID' || o.paymentChoice === 'CASH')
+    );
+  });
 
   protected readonly form = this.fb.group({
     partnerId: ['', Validators.required],
@@ -214,6 +240,30 @@ export class OrderEditorPage {
   }
 
   protected async cancel(order: Order): Promise<void> {
+    if (order.channel === 'ONLINE') {
+      // The customer sees the reason, and a paid order is refunded the way it was paid.
+      // العميل يشوف السبب، والطلب المدفوع ينرد بنفس طريقة الدفع.
+      const reason = await this.prompt.ask({
+        title: this.i18n.t('orders.cancelOrder'),
+        message:
+          order.paymentStatus === 'PAID'
+            ? this.i18n.t('orders.cancelPaidHint', {
+                number: order.number,
+                amount: this.fmt.money(order.total),
+              })
+            : this.i18n.t('orders.cancelConfirmedHint', { number: order.number }),
+        label: this.i18n.t('orders.cancelReason'),
+        confirmLabel: this.i18n.t('orders.cancelOrder'),
+        maxLength: 200,
+        danger: true,
+      });
+      if (reason !== null)
+        this.run(
+          this.api.post<Order>(`${this.cfg().api}/${order.id}/cancel`, { reason }),
+          'orders.cancelled',
+        );
+      return;
+    }
     const key =
       order.status === 'CONFIRMED' ? 'orders.cancelConfirmedHint' : 'orders.cancelConfirm';
     const ok = await this.confirm.ask({
@@ -224,6 +274,66 @@ export class OrderEditorPage {
     });
     if (ok)
       this.run(this.api.post<Order>(`${this.cfg().api}/${order.id}/cancel`), 'orders.cancelled');
+  }
+
+  protected async ship(order: Order): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: this.i18n.t('common.confirmTitle'),
+      message: this.i18n.t('orders.shipConfirm', { number: order.number }),
+      confirmLabel: this.i18n.t('orders.ship'),
+    });
+    if (ok) this.run(this.api.post<Order>(`/sales-orders/${order.id}/ship`), 'orders.shipped');
+  }
+
+  protected async deliver(order: Order): Promise<void> {
+    // Unpaid cash on delivery: confirming also records the cash the driver brought back.
+    // الدفع عند الاستلام وما انْدفع: التأكيد يسجّل الكاش اللي رجع فيه المندوب برضو.
+    const cash = order.paymentStatus !== 'PAID';
+    const message = [this.i18n.t('orders.deliverConfirm', { number: order.number })];
+    if (cash)
+      message.push(this.i18n.t('orders.cashCollected', { amount: this.fmt.money(order.total) }));
+    const ok = await this.confirm.ask({
+      title: this.i18n.t('common.confirmTitle'),
+      message: message.join(' '),
+      confirmLabel: this.i18n.t('orders.deliver'),
+    });
+    if (ok)
+      this.run(
+        this.api.post<Order>(`/sales-orders/${order.id}/deliver`, { cashCollected: cash }),
+        'orders.deliveredToast',
+      );
+  }
+
+  protected async recordCash(order: Order): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: this.i18n.t('common.confirmTitle'),
+      message: this.i18n.t('orders.recordCashConfirm', {
+        number: order.number,
+        amount: this.fmt.money(order.total),
+      }),
+      confirmLabel: this.i18n.t('orders.recordCash'),
+    });
+    if (ok) this.run(this.api.post<Order>(`/sales-orders/${order.id}/cash`), 'orders.cashRecorded');
+  }
+
+  protected phone(value: string): string {
+    return localPhone(value.replace(/\D/g, ''));
+  }
+
+  // Known failure codes are translated; a gateway's own code is shown as it came.
+  // رموز الفشل المعروفة تتترجم؛ ورمز البوابة الخاص ينعرض مثل ما جا.
+  protected failure(reason: string): string {
+    const key = `payment.reason.${reason}`;
+    const text = this.i18n.t(key);
+    return text === key ? reason : text;
+  }
+
+  // The system's own cancel reasons are translated; a reason typed by staff is shown as written.
+  // أسباب الإلغاء من النظام تتترجم؛ والسبب اللي كتبه الموظف ينعرض مثل ما هو.
+  protected reasonText(reason: string): string {
+    return reason === 'CUSTOMER' || reason === 'PAYMENT_TIMEOUT'
+      ? this.i18n.t(`orders.reason.${reason}`)
+      : reason;
   }
 
   // Shared request handling: busy flag, success toast, reload, and error display.

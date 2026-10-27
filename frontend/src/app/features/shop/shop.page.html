@@ -1,0 +1,152 @@
+<div class="shop-page">
+  @if (firstPage()) {
+    <section class="shop-hero" aria-labelledby="hero-title">
+      <h1 id="hero-title">{{ 'shop.heroTitle' | t }}</h1>
+      <p>{{ 'shop.heroText' | t }}</p>
+      <ul class="shop-hero__features">
+        <li><app-icon name="truck" /> {{ 'shop.featureDelivery' | t }}</li>
+        <li><app-icon name="card" /> {{ 'shop.featurePay' | t }}</li>
+        <li><app-icon name="cash" /> {{ 'shop.featureCash' | t }}</li>
+      </ul>
+    </section>
+  } @else {
+    <div class="section-gap"></div>
+  }
+
+  <div class="shop-layout">
+    <aside [attr.aria-label]="'shop.categories' | t">
+      <h2 class="visually-hidden">{{ 'shop.categories' | t }}</h2>
+      <ul class="cat-list" data-testid="categories">
+        <li>
+          <button
+            type="button"
+            [attr.aria-pressed]="!category()"
+            (click)="setFilter({ category: null })"
+          >
+            {{ 'shop.allCategories' | t }}
+          </button>
+        </li>
+        @for (c of categories.value() ?? []; track c.id) {
+          <li>
+            <button
+              type="button"
+              [attr.aria-pressed]="category() === '' + c.id"
+              (click)="setFilter({ category: c.id })"
+              [attr.data-testid]="'category-' + c.id"
+            >
+              <span>{{ name(c.name, c.nameAr) }}</span>
+              <span class="num muted">{{ fmt.number(c.productCount) }}</span>
+            </button>
+          </li>
+        }
+      </ul>
+    </aside>
+
+    <section>
+      <div class="toolbar">
+        <label class="visually-hidden" for="shop-search">{{ 'shop.search' | t }}</label>
+        <input
+          id="shop-search"
+          class="search"
+          type="search"
+          [value]="searchText()"
+          (input)="onSearch($any($event.target).value)"
+          [placeholder]="'shop.search' | t"
+          maxlength="100"
+          data-testid="shop-search"
+        />
+        <label class="visually-hidden" for="shop-sort">{{ 'shop.sort' | t }}</label>
+        <select
+          id="shop-sort"
+          [value]="currentSort()"
+          (change)="setFilter({ sort: $any($event.target).value })"
+          data-testid="shop-sort"
+        >
+          @for (s of sorts; track s) {
+            <option [value]="s" [selected]="s === currentSort()">{{ 'shop.sort' + s | t }}</option>
+          }
+        </select>
+        @if (products.value(); as result) {
+          <span class="muted" role="status">{{
+            'shop.results' | t: { count: fmt.number(result.totalElements) }
+          }}</span>
+        }
+      </div>
+
+      @if (errorText(); as message) {
+        <div class="alert alert--danger" role="alert">
+          {{ message }}
+          <button type="button" class="btn btn--small" (click)="products.reload()">
+            {{ 'app.retry' | t }}
+          </button>
+        </div>
+      } @else if (products.isLoading() && !products.hasValue()) {
+        <div class="product-grid" aria-hidden="true">
+          @for (i of [1, 2, 3, 4, 5, 6]; track i) {
+            <div class="product-card skeleton" style="min-height: 280px"></div>
+          }
+        </div>
+      } @else if (products.value(); as result) {
+        @if (result.content.length === 0) {
+          <div class="empty-state" data-testid="shop-empty">
+            <p>{{ 'shop.empty' | t }}</p>
+            <button
+              type="button"
+              class="btn"
+              (click)="searchText.set(''); setFilter({ q: null, category: null })"
+            >
+              {{ 'common.clearFilters' | t }}
+            </button>
+          </div>
+        } @else {
+          <ul class="product-grid" role="list" data-testid="product-grid">
+            @for (p of result.content; track p.id) {
+              <li class="product-card" [attr.data-testid]="'product-' + p.sku">
+                <span class="product-tile" [style.--hue]="hue(p.categoryId)">
+                  <span class="product-tile__inner"
+                    ><app-icon name="package" /><span dir="ltr">{{ p.sku }}</span></span
+                  >
+                </span>
+                <div class="product-card__body">
+                  <span class="list__sub">{{ name(p.categoryName, p.categoryNameAr) }}</span>
+                  <h3 class="product-card__name">
+                    <a [routerLink]="['/shop/products', p.id]">{{ name(p.name, p.nameAr) }}</a>
+                  </h3>
+                  @if (!p.inStock) {
+                    <span class="stock-hint stock-hint--out">{{ 'shop.outOfStock' | t }}</span>
+                  } @else if (p.left) {
+                    <span class="stock-hint stock-hint--low">{{
+                      'shop.left' | t: { count: fmt.number(p.left) }
+                    }}</span>
+                  } @else {
+                    <span class="stock-hint">{{ 'shop.inStock' | t }}</span>
+                  }
+                </div>
+                <div class="product-card__foot">
+                  <span class="price"
+                    >{{ fmt.money(p.price) }}<small>{{ 'shop.vatIncluded' | t }}</small></span
+                  >
+                  <button
+                    type="button"
+                    class="btn btn--small btn--primary"
+                    [disabled]="!p.inStock"
+                    (click)="add(p)"
+                    [attr.aria-label]="('shop.add' | t) + ': ' + name(p.name, p.nameAr)"
+                    [attr.data-testid]="'add-' + p.sku"
+                  >
+                    <app-icon name="plus" /> {{ 'shop.add' | t }}
+                  </button>
+                </div>
+              </li>
+            }
+          </ul>
+          <app-pagination
+            [page]="result.page"
+            [totalPages]="result.totalPages"
+            (pageChange)="setFilter({ page: $event })"
+          />
+        }
+      }
+    </section>
+  </div>
+</div>

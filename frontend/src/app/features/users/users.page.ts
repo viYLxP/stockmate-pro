@@ -16,6 +16,7 @@ import { ApiService } from '../../core/api/api.service';
 import { Role, User } from '../../core/api/models';
 import { AuthService } from '../../core/auth/auth.service';
 import { FormatService } from '../../core/i18n/format.service';
+import { localPhone } from '../../core/shop';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { FieldErrorComponent } from '../../core/ui/field-error.component';
@@ -50,6 +51,17 @@ export class UsersPage {
   protected readonly users = rxResource({ stream: () => this.api.get<User[]>('/users') });
   protected readonly roles: Role[] = ['ADMIN', 'STAFF'];
 
+  // Staff accounts are managed here; shop customers sign up themselves and can only be switched off or on.
+  // حسابات الموظفين تنْدار هنا؛ وعملاء المتجر يسجلون بنفسهم وبس ينطفون أو يشتغلون.
+  protected readonly tab = signal<'staff' | 'customers'>('staff');
+  protected readonly staff = computed(() =>
+    (this.users.value() ?? []).filter((u) => u.role !== 'CUSTOMER'),
+  );
+  protected readonly customers = computed(() =>
+    (this.users.value() ?? []).filter((u) => u.role === 'CUSTOMER'),
+  );
+  protected readonly toggling = signal<number | null>(null);
+
   protected readonly mode = signal<DialogMode>('create');
   protected readonly target = signal<User | null>(null);
   protected readonly saving = signal(false);
@@ -81,6 +93,27 @@ export class UsersPage {
     role: ['STAFF' as Role, Validators.required],
     active: [true],
   });
+
+  protected phone(value: string | null): string {
+    return localPhone(value);
+  }
+
+  protected setActive(user: User, active: boolean): void {
+    this.toggling.set(user.id);
+    this.api
+      .put<User>(`/users/${user.id}`, { fullName: user.fullName, role: user.role, active })
+      .subscribe({
+        next: () => {
+          this.toggling.set(null);
+          this.toast.success(this.i18n.t(active ? 'users.enabled' : 'users.disabled'));
+          this.users.reload();
+        },
+        error: (err) => {
+          this.toggling.set(null);
+          this.toast.error(errorMessage(this.i18n, toApiError(err)));
+        },
+      });
+  }
 
   protected isSelf(user: User | null): boolean {
     const me = this.auth.user();

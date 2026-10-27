@@ -50,6 +50,10 @@ export function errorMessage(i18n: I18nService, error: ApiError): string {
       params[key] = value;
     }
   }
+  // "Wait N minutes" from the rate limiter's seconds. / "انتظر N دقايق" من ثواني محدد المحاولات.
+  if (typeof params['retryAfterSeconds'] === 'number') {
+    params['minutes'] = Math.max(1, Math.ceil(params['retryAfterSeconds'] / 60));
+  }
   // Translate an order status inside the message too ("…while the order is Received").
   // نترجم حالة الطلب داخل الرسالة أيضًا ("…والطلب في حالة مستلم").
   if (typeof params['status'] === 'string') {

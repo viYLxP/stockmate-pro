@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+  linkedSignal,
+  signal,
+} from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 
@@ -8,6 +16,7 @@ import { FormatService } from '../../core/i18n/format.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { IconComponent } from '../../core/ui/icon.component';
 import { PaginationComponent } from '../../core/ui/pagination.component';
+import { PaymentBadgeComponent } from '../../shared/payment-badge.component';
 import { ORDER_KINDS, OrderKind } from './order-kind';
 
 /**
@@ -16,7 +25,7 @@ import { ORDER_KINDS, OrderKind } from './order-kind';
  */
 @Component({
   selector: 'app-order-list',
-  imports: [RouterLink, TranslatePipe, IconComponent, PaginationComponent],
+  imports: [RouterLink, TranslatePipe, IconComponent, PaginationComponent, PaymentBadgeComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './order-list.page.html',
 })
@@ -27,6 +36,13 @@ export class OrderListPage {
   readonly kind = input.required<OrderKind>();
   protected readonly cfg = computed(() => ORDER_KINDS[this.kind()]);
 
+  // ?channel=ONLINE opens the shop orders directly (the dashboard links here).
+  // ‎?channel=ONLINE يفتح طلبات المتجر مباشرة (اللوحة ترتبط هنا).
+  readonly channel = input<string | undefined>();
+  protected readonly channelFilter = linkedSignal(() =>
+    this.channel() === 'ONLINE' || this.channel() === 'OFFICE' ? this.channel()! : '',
+  );
+
   protected readonly status = signal('');
   protected readonly search = signal('');
   protected readonly page = signal(0);
@@ -35,6 +51,8 @@ export class OrderListPage {
     params: () => ({
       api: this.cfg().api,
       status: this.status(),
+      // Purchases have no channel. / المشتريات ما لها قناة.
+      channel: this.kind() === 'sales' ? this.channelFilter() : '',
       q: this.search(),
       page: this.page(),
       size: 20,
@@ -50,6 +68,11 @@ export class OrderListPage {
       this.page.set(0);
       this.search.set(value.trim());
     }, 300);
+  }
+
+  protected setChannel(value: string): void {
+    this.page.set(0);
+    this.channelFilter.set(value);
   }
 
   protected setStatus(value: string): void {

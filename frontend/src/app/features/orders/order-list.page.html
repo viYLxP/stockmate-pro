@@ -30,6 +30,24 @@
       }
     </select>
   </div>
+  @if (kind() === 'sales') {
+    <div>
+      <label class="visually-hidden" for="order-channel">{{ 'orders.channel' | t }}</label>
+      <select
+        id="order-channel"
+        (change)="setChannel($any($event.target).value)"
+        data-testid="channel-filter"
+      >
+        <option value="" [selected]="channelFilter() === ''">{{ 'orders.anyChannel' | t }}</option>
+        <option value="ONLINE" [selected]="channelFilter() === 'ONLINE'">
+          {{ 'channel.ONLINE' | t }}
+        </option>
+        <option value="OFFICE" [selected]="channelFilter() === 'OFFICE'">
+          {{ 'channel.OFFICE' | t }}
+        </option>
+      </select>
+    </div>
+  }
 </div>
 
 @if (orders.error()) {
@@ -65,7 +83,20 @@
               <bdi>{{ partnerName(o) }}</bdi>
             </td>
             <td>
-              <span [class]="'badge badge--' + o.status">{{ 'orderStatus.' + o.status | t }}</span>
+              <span class="row-badges">
+                <span [class]="'badge badge--' + o.status">{{
+                  'orderStatus.' + o.status | t
+                }}</span>
+                @if (o.channel === 'ONLINE') {
+                  <span class="badge badge--info">{{ 'channel.ONLINE' | t }}</span>
+                  @if (o.status === 'CONFIRMED' && o.fulfilment) {
+                    <span class="badge badge--accent">{{ 'fulfilment.' + o.fulfilment | t }}</span>
+                  }
+                  @if (o.paymentStatus) {
+                    <app-payment-badge [status]="o.paymentStatus" />
+                  }
+                }
+              </span>
             </td>
             <td>{{ fmt.date(o[cfg().completedAtField] ?? o.createdAt) }}</td>
             <td class="cell-end num">{{ fmt.money(o.total) }}</td>
@@ -73,7 +104,9 @@
         } @empty {
           <tr>
             <td colspan="5" class="empty-state">
-              {{ (search() || status() ? 'common.noResults' : 'common.empty') | t }}
+              {{
+                (search() || status() || channelFilter() ? 'common.noResults' : 'common.empty') | t
+              }}
             </td>
           </tr>
         }

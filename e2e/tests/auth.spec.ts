@@ -5,8 +5,10 @@ import { ADMIN, STAFF, login } from './helpers';
 test.describe('authentication', () => {
   test('rejects a wrong password, then signs in (Arabic, RTL)', async ({ page }) => {
     await page.goto('/');
-    // Unauthenticated users are sent to the login page.
-    // المستخدم غير المسجّل يتحوّل لصفحة الدخول.
+    // Visitors land in the shop; the office is behind the sign-in page.
+    // الزائر يوصل للمتجر؛ والمكتب ورا صفحة الدخول.
+    await expect(page).toHaveURL(/\/shop$/);
+    await page.goto('/dashboard');
     await expect(page).toHaveURL(/\/login/);
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
     await expect(page.locator('html')).toHaveAttribute('lang', 'ar');

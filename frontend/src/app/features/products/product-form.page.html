@@ -166,6 +166,68 @@
       }
     </div>
 
+    <fieldset class="form-section section-gap" data-testid="shop-fields">
+      <legend>{{ 'products.shopTitle' | t }}</legend>
+      <label class="checkbox"
+        ><input type="checkbox" formControlName="published" data-testid="published" />
+        {{ 'products.published' | t }}</label
+      >
+      <p class="hint">{{ 'products.publishedHint' | t }}</p>
+      <div class="form-grid">
+        <div class="field">
+          <label for="name-ar">{{ 'products.nameAr' | t }}</label>
+          <input
+            id="name-ar"
+            formControlName="nameAr"
+            dir="rtl"
+            lang="ar"
+            maxlength="150"
+            aria-describedby="name-ar-hint name-ar-err"
+          />
+          <p class="hint" id="name-ar-hint">{{ 'products.nameArHint' | t }}</p>
+          <app-field-error
+            [control]="form.controls.nameAr"
+            [server]="serverFields()['shop.nameAr']"
+            id="name-ar-err"
+          />
+        </div>
+        <div class="field form-grid--full">
+          <label for="desc-en">{{ 'products.descriptionEn' | t }}</label>
+          <textarea
+            id="desc-en"
+            formControlName="description"
+            rows="3"
+            dir="ltr"
+            lang="en"
+            maxlength="1000"
+            aria-describedby="desc-en-err"
+          ></textarea>
+          <app-field-error
+            [control]="form.controls.description"
+            [server]="serverFields()['shop.description']"
+            id="desc-en-err"
+          />
+        </div>
+        <div class="field form-grid--full">
+          <label for="desc-ar">{{ 'products.descriptionAr' | t }}</label>
+          <textarea
+            id="desc-ar"
+            formControlName="descriptionAr"
+            rows="3"
+            dir="rtl"
+            lang="ar"
+            maxlength="1000"
+            aria-describedby="desc-ar-err"
+          ></textarea>
+          <app-field-error
+            [control]="form.controls.descriptionAr"
+            [server]="serverFields()['shop.descriptionAr']"
+            id="desc-ar-err"
+          />
+        </div>
+      </div>
+    </fieldset>
+
     <div class="form-actions">
       <a class="btn" [routerLink]="isEdit() ? ['/products', id()] : '/products'">{{
         'common.cancel' | t

@@ -59,6 +59,22 @@
         >
       </p>
     </article>
+    <article
+      class="card stat-card"
+      [class.stat-card--warn]="d.shop.toShip > 0"
+      data-testid="kpi-shop"
+    >
+      <p class="stat-card__label">{{ 'dashboard.toShip' | t }}</p>
+      <p class="stat-card__value num">
+        <a routerLink="/sales" [queryParams]="{ channel: 'ONLINE' }">{{
+          fmt.number(d.shop.toShip)
+        }}</a>
+      </p>
+      <p class="stat-card__sub">
+        {{ 'dashboard.outForDelivery' | t: { count: fmt.number(d.shop.outForDelivery) } }} ·
+        {{ 'dashboard.collected' | t }}: {{ fmt.money(d.shop.collectedThisMonth) }}
+      </p>
+    </article>
   </section>
 
   <div class="grid grid--2">
